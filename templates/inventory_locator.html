@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Vehicle Locator - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h1 class="text-3xl font-bold text-gray-900">🔍 Vehicle Locator</h1>
+        <p class="text-gray-600 mt-1">Search, locate, and analyze stock across branches</p>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="border-b border-gray-200 px-6 py-4">
+            <div class="flex space-x-4">
+                <a href="/inventory/stock-levels" class="px-4 py-2 text-gray-600 hover:text-gray-900">
+                    📊 Stock Levels
+                </a>
+                <button class="px-4 py-2 border-b-2 border-blue-600 text-blue-600 font-medium">
+                    🔍 Locator
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <!-- Search Mode -->
+            <form method="POST" action="/inventory/locator/search" class="space-y-6">
+                <div>
+                    <p class="font-semibold text-gray-900 mb-3">Search Mode:</p>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="search_mode" value="attributes" checked class="mr-2">
+                            <span>By Attributes</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="search_mode" value="chassis" class="mr-2">
+                            <span>By Chassis</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- By Attributes -->
+                <div id="attributes-search" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                        <select name="model" id="modelSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Model</option>
+                            {% for model in master_data.keys() %}
+                            <option value="{{ model }}">{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Variant</label>
+                        <select name="variant" id="variantSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Variant</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                        <select name="color" id="colorSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Color</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- By Chassis -->
+                <div id="chassis-search" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Chassis Number</label>
+                    <input type="text" name="chassis" placeholder="Enter chassis number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition">
+                    🔍 Search Vehicles
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Search Results -->
+    {% if results %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 bg-green-50 border-b border-green-100">
+            <h2 class="text-lg font-semibold text-gray-900">Search Results ({{ results|length }})</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chassis No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Variant</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Color</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">DC Number</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for vehicle in results %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ vehicle.chassis_no }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ vehicle.model }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ vehicle.variant }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ vehicle.color }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ vehicle.Current_Location }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                {{ vehicle.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ vehicle.dc_number or 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Toggle search mode
+const searchMode = document.querySelectorAll('input[name="search_mode"]');
+const attributesSearch = document.getElementById('attributes-search');
+const chassisSearch = document.getElementById('chassis-search');
+
+searchMode.forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.value === 'attributes') {
+            attributesSearch.classList.remove('hidden');
+            chassisSearch.classList.add('hidden');
+        } else {
+            attributesSearch.classList.add('hidden');
+            chassisSearch.classList.remove('hidden');
+        }
+    });
+});
+
+// Cascading dropdowns
+const masterData = {{ master_data|tojson }};
+const modelSelect = document.getElementById('modelSelect');
+const variantSelect = document.getElementById('variantSelect');
+const colorSelect = document.getElementById('colorSelect');
+
+modelSelect.addEventListener('change', function() {
+    const model = this.value;
+    variantSelect.innerHTML = '<option value="">Select Variant</option>';
+    colorSelect.innerHTML = '<option value="">Select Color</option>';
+    
+    if (model && masterData[model]) {
+        Object.keys(masterData[model]).forEach(variant => {
+            const option = document.createElement('option');
+            option.value = variant;
+            option.textContent = variant;
+            variantSelect.appendChild(option);
+        });
+    }
+});
+
+variantSelect.addEventListener('change', function() {
+    const model = modelSelect.value;
+    const variant = this.value;
+    colorSelect.innerHTML = '<option value="">Select Color</option>';
+    
+    if (model && variant && masterData[model][variant]) {
+        masterData[model][variant].forEach(color => {
+            const option = document.createElement('option');
+            option.value = color;
+            option.textContent = color;
+            colorSelect.appendChild(option);
+        });
+    }
+});
+</script>
+{% endblock %}
