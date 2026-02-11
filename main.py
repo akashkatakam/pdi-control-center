@@ -5,50 +5,51 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables
-load_dotenv()
+from routers import auth, overview, task_manager, inventory, logistics, reports
 
 # Initialize FastAPI app
 app = FastAPI(
     title="PDI Control Center",
-    description="Vehicle tracking and PDI operations management system",
+    description="Vehicle Tracking and PDI Operations Management System",
     version="1.0.0"
 )
 
-# Add session middleware for authentication
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-)
+# Add session middleware
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-please")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Mount static files (CSS, JS) - Will be created
-try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-except RuntimeError:
-    # Static directory doesn't exist yet
-    pass
+# Create static directory if it doesn't exist
+Path("static/css").mkdir(parents=True, exist_ok=True)
+Path("static/js").mkdir(parents=True, exist_ok=True)
 
-# Setup Jinja2 templates - Will be created
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Setup Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
-# TODO: Include routers once created
-# from routers import auth, pdi, mechanic
-# app.include_router(auth.router)
-# app.include_router(pdi.router)
-# app.include_router(mechanic.router)
+# Include routers
+app.include_router(auth.router)
+app.include_router(overview.router)
+app.include_router(task_manager.router)
+app.include_router(inventory.router)
+app.include_router(logistics.router)
+app.include_router(reports.router)
 
-# Root endpoint
+# Root redirect
 @app.get("/")
-async def root():
-    """Redirect to login page"""
+async def root(request: Request):
+    """Redirect to overview if logged in, otherwise to login"""
+    if request.session.get("logged_in"):
+        return RedirectResponse(url="/overview")
     return RedirectResponse(url="/login")
 
+# Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for deployment"""
-    return {"status": "healthy", "service": "PDI Control Center"}
+    return {"status": "healthy", "app": "PDI Control Center"}
 
 if __name__ == "__main__":
     import uvicorn
