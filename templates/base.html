@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PDI Control Center{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- HTMX for dynamic updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    
+    {% if request.session.get('logged_in') %}
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-md border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo/Brand -->
+                <div class="flex items-center">
+                    <a href="/overview" class="flex items-center">
+                        <span class="text-2xl mr-2">🚀</span>
+                        <span class="text-xl font-bold text-gray-900">PDI Control Center</span>
+                    </a>
+                </div>
+                
+                <!-- Navigation Links -->
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="/overview" class="{% if current_page == 'overview' %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %} px-4 py-2 rounded-md text-sm font-medium transition">
+                        <span class="mr-1">🏠</span> Overview
+                    </a>
+                    <a href="/task-manager" class="{% if current_page == 'task_manager' %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %} px-4 py-2 rounded-md text-sm font-medium transition">
+                        <span class="mr-1">📋</span> Task Manager
+                    </a>
+                    <a href="/inventory/stock-levels" class="{% if current_page == 'inventory' %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %} px-4 py-2 rounded-md text-sm font-medium transition">
+                        <span class="mr-1">🚗</span> Inventory
+                    </a>
+                    <a href="/logistics/receive" class="{% if current_page == 'logistics' %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %} px-4 py-2 rounded-md text-sm font-medium transition">
+                        <span class="mr-1">📦</span> Logistics
+                    </a>
+                    <a href="/reports" class="{% if current_page == 'reports' %}bg-blue-50 text-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %} px-4 py-2 rounded-md text-sm font-medium transition">
+                        <span class="mr-1">📊</span> Reports
+                    </a>
+                </div>
+                
+                <!-- User Info -->
+                <div class="flex items-center space-x-4">
+                    <div class="text-right hidden sm:block">
+                        <div class="text-sm font-medium text-gray-900">{{ request.session.get('username') }}</div>
+                        <div class="text-xs text-gray-500">{{ request.session.get('branch_name') }}</div>
+                    </div>
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-150">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <main class="{% if request.session.get('logged_in') %}max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <p class="text-center text-sm text-gray-500">
+                PDI Control Center © 2026. All rights reserved.
+            </p>
+        </div>
+    </footer>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
