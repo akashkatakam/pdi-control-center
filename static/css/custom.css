@@ -1,0 +1,163 @@
+/* Custom CSS for PDI Control Center */
+
+/* Smooth transitions */
+* {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Loading animation */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #3b82f6;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Card hover effects */
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Status badges */
+.badge-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-progress {
+    background-color: #fed7aa;
+    color: #9a3412;
+}
+
+.badge-complete {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+/* Table striping */
+tbody tr:nth-child(even) {
+    background-color: #f9fafb;
+}
+
+/* Form focus states */
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    ring: 2px;
+    ring-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Button hover effects */
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+/* Gradient backgrounds */
+.gradient-blue {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-green {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+/* Print styles */
+@media print {
+    nav, .no-print {
+        display: none !important;
+    }
+    
+    body {
+        background: white;
+    }
+}
+
+/* Mobile responsive tweaks */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none;
+    }
+    
+    .table-responsive {
+        overflow-x: auto;
+    }
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Details/Summary styling */
+details summary {
+    cursor: pointer;
+    user-select: none;
+}
+
+details summary::-webkit-details-marker {
+    display: none;
+}
+
+details[open] summary svg {
+    transform: rotate(180deg);
+}
