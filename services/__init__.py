@@ -1,4 +1,2 @@
-from . import branch_service
-from . import stock_service
-from . import sales_service
-from . import report_service
+# services/__init__.py
+from . import branch_service, stock_service
