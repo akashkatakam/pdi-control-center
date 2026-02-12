@@ -23,6 +23,7 @@ email-validator
 python-dotenv
 python-jose[cryptography]
 passlib[bcrypt]
+pytz
 
 # HTTP requests
 requests
