@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}PDI Checklist - {{ sale.DC_Number }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center space-x-4">
+        <a href="/mechanic/dashboard" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-lg transition">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">PDI Checklist</h1>
+            <p class="text-gray-500">DC Number: {{ sale.DC_Number }}</p>
+        </div>
+    </div>
+
+    <!-- Customer Info Card -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Customer Information</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <p class="text-gray-500 text-sm">Customer Name</p>
+                <p class="font-semibold text-gray-900">{{ sale.Customer_Name }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500 text-sm">Model</p>
+                <p class="font-semibold text-gray-900">{{ sale.Model }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500 text-sm">Variant</p>
+                <p class="font-semibold text-gray-900">{{ sale.Variant }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500 text-sm">Color</p>
+                <p class="font-semibold text-gray-900">{{ sale.Paint_Color }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Scanner Section -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md p-6 text-white">
+        <h2 class="text-xl font-bold mb-4 flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            Scan Vehicle QR Code
+        </h2>
+
+        {% if sale.chassis_no and sale.engine_no %}
+        <div class="bg-white bg-opacity-20 rounded-lg p-4">
+            <p class="text-sm mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Vehicle Scanned Successfully
+            </p>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-xs text-blue-100">Chassis Number</p>
+                    <p class="font-mono font-bold">{{ sale.chassis_no }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-blue-100">Engine Number</p>
+                    <p class="font-mono font-bold">{{ sale.engine_no }}</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-lg p-6 text-gray-900">
+            <!-- Camera Scanner -->
+            <div id="qr-reader" class="mb-4 rounded-lg overflow-hidden" style="display: none;"></div>
+
+            <!-- Scanner Controls -->
+            <div id="scanner-controls" class="space-y-4">
+                <button
+                    onclick="startScanner()"
+                    id="start-scan-btn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-semibold transition flex items-center justify-center"
+                >
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Open Camera Scanner
+                </button>
+
+                <button
+                    onclick="stopScanner()"
+                    id="stop-scan-btn"
+                    style="display: none;"
+                    class="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+                >
+                    Stop Scanner
+                </button>
+
+                <!-- Manual Input Option -->
+                <div class="border-t-2 border-gray-200 pt-4">
+                    <p class="text-sm text-gray-600 mb-2 text-center">Or enter manually:</p>
+                    <input
+                        type="text"
+                        id="manual_chassis_input"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono mb-3"
+                        placeholder="Type chassis number..."
+                    />
+                    <button
+                        onclick="manualSubmit()"
+                        class="w-full bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+                    >
+                        Submit Manually
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scanning Status -->
+            <div id="scan-status" class="mt-4 text-center text-sm" style="display: none;"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- PDI Checklist -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Pre-Delivery Inspection Checklist</h2>
+
+        <form id="pdi_form" class="space-y-4">
+            <!-- Exterior Check -->
+            <div class="border-b pb-4">
+                <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Exterior Check
+                </h3>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Body panel alignment & gaps</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Paint finish & scratches</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">All lights functioning</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Mirrors & indicators</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Mechanical Check -->
+            <div class="border-b pb-4">
+                <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Mechanical Check
+                </h3>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Engine start & idle</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Brake system</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Suspension & steering</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Tire pressure & condition</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">All fluid levels</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Electrical & Features -->
+            <div class="border-b pb-4">
+                <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Electrical & Features
+                </h3>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Battery & charging system</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Horn & switches</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Speedometer & instruments</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">USB charging port</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Final Check -->
+            <div class="pb-4">
+                <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Final Check
+                </h3>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Test ride completed</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Vehicle cleaned</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" required />
+                        <span class="text-gray-700">Documents verified</span>
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Complete Button -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <button
+            onclick="completePDI()"
+            {% if not sale.chassis_no or not sale.engine_no %}disabled{% endif %}
+            class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-bold text-lg transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
+        >
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Mark PDI as Complete
+        </button>
+        {% if not sale.chassis_no or not sale.engine_no %}
+        <p class="text-red-600 text-sm mt-2 text-center">Please scan vehicle QR code first</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+let html5QrcodeScanner = null;
+
+function startScanner() {
+    const qrReaderDiv = document.getElementById('qr-reader');
+    const startBtn = document.getElementById('start-scan-btn');
+    const stopBtn = document.getElementById('stop-scan-btn');
+    const statusDiv = document.getElementById('scan-status');
+
+    // Show scanner div
+    qrReaderDiv.style.display = 'block';
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'block';
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = '<p class="text-blue-600 font-semibold">📷 Point camera at QR code...</p>';
+
+    // Initialize scanner
+    html5QrcodeScanner = new Html5Qrcode("qr-reader");
+
+    // Start scanning
+    html5QrcodeScanner.start(
+        { facingMode: "environment" }, // Use back camera
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        },
+        (decodedText, decodedResult) => {
+            // Success callback
+            console.log(`QR Code detected: ${decodedText}`);
+            statusDiv.innerHTML = '<p class="text-green-600 font-semibold">✓ QR Code Detected! Processing...</p>';
+
+            // Stop scanner and process
+            stopScanner();
+            processQRData(decodedText);
+        },
+        (errorMessage) => {
+            // Error callback (can be ignored for scanning errors)
+            console.log(`QR Code scan error: ${errorMessage}`);
+        }
+    ).catch((err) => {
+        console.error('Unable to start scanner:', err);
+        statusDiv.innerHTML = '<p class="text-red-600 font-semibold">❌ Camera access denied or not available. Use manual input below.</p>';
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'block';
+    });
+}
+
+function stopScanner() {
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+            console.log('Scanner stopped');
+            document.getElementById('qr-reader').style.display = 'none';
+            document.getElementById('start-scan-btn').style.display = 'block';
+            document.getElementById('stop-scan-btn').style.display = 'none';
+        }).catch((err) => {
+            console.error('Error stopping scanner:', err);
+        });
+    }
+}
+
+function manualSubmit() {
+    const chassisNo = document.getElementById('manual_chassis_input').value.trim();
+
+    if (!chassisNo) {
+        alert('Please enter chassis number');
+        return;
+    }
+
+    processQRData(chassisNo);
+}
+
+async function processQRData(qrData) {
+    const statusDiv = document.getElementById('scan-status');
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = '<p class="text-blue-600 font-semibold">Processing...</p>';
+
+    // Extract chassis number from QR data
+    let chassisNo = qrData.trim();
+
+    // Handle different QR formats
+    // Format 1: "CHASSIS:ME4KF19H5NK123456"
+    // Format 2: Just the chassis number
+    // Format 3: JSON format
+    if (qrData.includes(':')) {
+        const parts = qrData.split(':');
+        chassisNo = parts[parts.length - 1].trim(

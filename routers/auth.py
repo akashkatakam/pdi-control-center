@@ -14,9 +14,13 @@ templates = Jinja2Templates(directory="templates")
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Display login page"""
-    # If already logged in, redirect to overview
+    # If already logged in, redirect based on role
     if request.session.get("logged_in"):
-        return RedirectResponse(url="/overview")
+        user_role = request.session.get("user_role")
+        if user_role == "Mechanic":
+            return RedirectResponse(url="/mechanic/dashboard")
+        else:
+            return RedirectResponse(url="/overview")
 
     return templates.TemplateResponse(
         "login.html",
@@ -48,8 +52,8 @@ async def login(
             }
         )
 
-    # Check if user has proper role
-    if user.role not in ["Owner", "PDI", "Back Office"]:
+    # Check if user has proper role - NOW INCLUDING MECHANIC
+    if user.role not in ["Owner", "PDI", "Back Office", "Mechanic", "Insurance/TR"]:
         return templates.TemplateResponse(
             "login.html",
             {
@@ -66,8 +70,11 @@ async def login(
     request.session["branch_id"] = user.Branch_ID
     request.session["branch_name"] = user.branch.Branch_Name if user.branch else "N/A"
 
-    # Redirect to overview
-    return RedirectResponse(url="/overview", status_code=303)
+    # Redirect based on role
+    if user.role == "Mechanic":
+        return RedirectResponse(url="/mechanic/dashboard", status_code=303)
+    else:
+        return RedirectResponse(url="/overview", status_code=303)
 
 
 @router.get("/logout")

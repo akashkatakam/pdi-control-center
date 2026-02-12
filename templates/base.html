@@ -65,7 +65,7 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Left: Logo and Brand -->
                 <div class="flex items-center space-x-4">
-                    <a href="/overview" class="flex items-center space-x-3 group">
+                    <a href="{% if user_role == 'Mechanic' %}/mechanic/dashboard{% else %}/overview{% endif %}" class="flex items-center space-x-3 group">
                         <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition">
                             <span class="text-2xl">🚀</span>
                         </div>
@@ -76,8 +76,8 @@
                     </a>
                 </div>
 
-                <!-- Center: Context Switcher (Owner Only) -->
-                {% if is_owner %}
+                <!-- Center: Context Switcher (Owner Only, NOT for Mechanic) -->
+                {% if is_owner and user_role != "Mechanic" %}
                 <div class="hidden lg:flex items-center flex-1 max-w-md mx-8">
                     <form method="POST" action="/overview/switch-context" class="w-full">
                         <div class="flex items-center space-x-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl px-4 py-2 border-2 border-purple-200">
@@ -170,7 +170,8 @@
                 </div>
             </div>
 
-            <!-- Bottom Row: Main Navigation -->
+            <!-- Bottom Row: Main Navigation (NOT for Mechanic) -->
+            {% if user_role != "Mechanic" %}
             <div class="hidden lg:flex items-center space-x-1 h-12 border-t border-gray-100">
                 <a href="/overview" class="nav-link {% if current_page == 'overview' %}active{% endif %} flex items-center space-x-2 px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,11 +243,12 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </nav>
 
-    <!-- Mobile Context Switcher (Owner Only) -->
-    {% if is_owner %}
+    <!-- Mobile Context Switcher (Owner Only, NOT for Mechanic) -->
+    {% if is_owner and user_role != "Mechanic" %}
     <div class="lg:hidden bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-purple-200">
         <form method="POST" action="/overview/switch-context" class="px-4 py-3">
             <div class="flex items-center space-x-3">
@@ -274,7 +276,23 @@
 
     <!-- Mobile Bottom Navigation -->
     <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl z-50">
-        <div class="grid grid-cols-5 gap-1 px-2 py-2">
+        <div class="grid {% if user_role == 'Mechanic' %}grid-cols-2{% else %}grid-cols-5{% endif %} gap-1 px-2 py-2">
+            {% if user_role == "Mechanic" %}
+            <!-- Mechanic Navigation -->
+            <a href="/mechanic/dashboard" class="bottom-nav-link {% if current_page == 'mechanic' %}active{% endif %} flex flex-col items-center justify-center py-2 text-gray-600 hover:text-blue-600 transition rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <span class="text-xs mt-1 font-medium">My Tasks</span>
+            </a>
+            <a href="/logout" class="bottom-nav-link flex flex-col items-center justify-center py-2 text-gray-600 hover:text-red-600 transition rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                <span class="text-xs mt-1 font-medium">Logout</span>
+            </a>
+            {% else %}
+            <!-- Regular User Navigation -->
             <a href="/overview" class="bottom-nav-link {% if current_page == 'overview' %}active{% endif %} flex flex-col items-center justify-center py-2 text-gray-600 hover:text-blue-600 transition rounded-lg">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -306,6 +324,7 @@
                 </svg>
                 <span class="text-xs mt-1 font-medium">Reports</span>
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -314,7 +333,7 @@
             const menu = document.getElementById('userMenu');
             const moreMenu = document.getElementById('moreMenu');
             menu.classList.toggle('hidden');
-            moreMenu.classList.add('hidden');
+            if (moreMenu) moreMenu.classList.add('hidden');
         }
 
         function toggleMoreMenu() {
@@ -333,7 +352,7 @@
                 userMenu.classList.add('hidden');
             }
 
-            if (!e.target.closest('[onclick="toggleMoreMenu()"]') && !moreMenu.contains(e.target)) {
+            if (moreMenu && !e.target.closest('[onclick="toggleMoreMenu()"]') && !moreMenu.contains(e.target)) {
                 moreMenu.classList.add('hidden');
             }
         });

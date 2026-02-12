@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 from pathlib import Path
 
-from routers import auth, overview, task_manager, inventory, logistics, reports
+from routers import auth, overview, task_manager, inventory, logistics, reports, mechanic
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -37,6 +37,7 @@ app.include_router(task_manager.router)
 app.include_router(inventory.router)
 app.include_router(logistics.router)
 app.include_router(reports.router)
+app.include_router(mechanic.router)
 
 # Root redirect
 @app.get("/")
