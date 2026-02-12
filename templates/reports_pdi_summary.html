@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}PDI Summary Report - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Back Button -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">📋 PDI Summary Report</h1>
+                <p class="text-sm text-gray-600">Comprehensive PDI performance analysis</p>
+            </div>
+        </div>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            🖨️ Print
+        </button>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="bg-white rounded-xl shadow-lg p-4">
+        <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+                <input 
+                    type="date" 
+                    name="from_date" 
+                    value="{{ from_date }}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+                <input 
+                    type="date" 
+                    name="to_date" 
+                    value="{{ to_date }}"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                Apply
+            </button>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs text-gray-600">Total PDI Tasks</p>
+                <span class="text-2xl">📊</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-900">{{ summary.total }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs text-gray-600">Completed</p>
+                <span class="text-2xl">✅</span>
+            </div>
+            <p class="text-3xl font-bold text-green-600">{{ summary.completed }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ summary.completion_rate }}% rate</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs text-gray-600">In Progress</p>
+                <span class="text-2xl">⚡</span>
+            </div>
+            <p class="text-3xl font-bold text-blue-600">{{ summary.in_progress }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs text-gray-600">Pending</p>
+                <span class="text-2xl">⏳</span>
+            </div>
+            <p class="text-3xl font-bold text-orange-600">{{ summary.pending }}</p>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="grid lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-900 mb-4">⏱️ Average Completion Time</h3>
+            <div class="space-y-3">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Overall Average</span>
+                        <span class="font-bold text-gray-900">{{ metrics.avg_time }}h</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ (metrics.avg_time / 72 * 100)|round }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Target Time</span>
+                        <span class="font-bold text-green-600">{{ metrics.target_time }}h</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Fastest Completion</span>
+                        <span class="font-bold text-green-600">{{ metrics.fastest }}h</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Slowest Completion</span>
+                        <span class="font-bold text-red-600">{{ metrics.slowest }}h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-900 mb-4">📈 Completion Trend</h3>
+            <div class="space-y-3">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">This Week</span>
+                        <span class="font-bold text-gray-900">{{ trends.this_week }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-600 h-2 rounded-full" style="width: {{ (trends.this_week / trends.max * 100)|round }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Last Week</span>
+                        <span class="font-bold text-gray-900">{{ trends.last_week }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ (trends.last_week / trends.max * 100)|round }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">This Month</span>
+                        <span class="font-bold text-gray-900">{{ trends.this_month }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-600 h-2 rounded-full" style="width: {{ (trends.this_month / trends.max * 100)|round }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-900 mb-4">🎯 Performance Indicators</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">On-Time Completion</span>
+                    <span class="text-sm font-bold text-green-600">{{ kpis.on_time }}%</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Overdue Tasks</span>
+                    <span class="text-sm font-bold text-red-600">{{ kpis.overdue }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Quality Score</span>
+                    <span class="text-sm font-bold text-blue-600">{{ kpis.quality }}%</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Customer Satisfaction</span>
+                    <span class="text-sm font-bold text-purple-600">{{ kpis.satisfaction }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Table -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b flex justify-between items-center">
+            <h3 class="font-bold text-lg text-gray-900">PDI Task Details</h3>
+            <a href="/reports/pdi-summary/export?from_date={{ from_date }}&to_date={{ to_date }}" 
+               class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                📥 Export to Excel
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Customer</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Chassis No</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Branch</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Status</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Duration</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for task in tasks %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ task.date }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ task.customer }}</td>
+                        <td class="px-4 py-3 text-sm font-mono text-gray-700">{{ task.chassis_no }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ task.model }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ task.branch }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if task.status == 'PDI Completed' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                ✓ Completed
+                            </span>
+                            {% elif task.status == 'PDI In Progress' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                ⚡ In Progress
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                ⏳ Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">
+                            {% if task.duration %}
+                                {{ task.duration }}h
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="/task-manager/{{ task.id }}" class="text-blue-600 hover:text-blue-700 text-xs font-medium">
+                                View →
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="bg-gray-50 px-5 py-4 border-t flex justify-between items-center">
+            <p class="text-sm text-gray-600">Showing {{ tasks|length }} of {{ total_tasks }} tasks</p>
+            <div class="flex gap-2">
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}&from_date={{ from_date }}&to_date={{ to_date }}" 
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">
+                    Previous
+                </a>
+                {% endif %}
+                {% if has_next %}
+                <a href="?page={{ page + 1 }}&from_date={{ from_date }}&to_date={{ to_date }}" 
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

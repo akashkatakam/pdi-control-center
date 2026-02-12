@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}In-Transit Vehicles - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">🚚 In-Transit Vehicles</h1>
+                <p class="text-sm text-gray-600">Currently moving stock between locations</p>
+            </div>
+        </div>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            🖨️ Print
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-purple-100 text-xs mb-1">Total In Transit</p>
+            <p class="text-4xl font-bold">{{ summary.total_in_transit }}</p>
+            <p class="text-purple-100 text-xs mt-2">Vehicles moving</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-blue-100 text-xs mb-1">Active Loads</p>
+            <p class="text-4xl font-bold">{{ summary.active_loads }}</p>
+            <p class="text-blue-100 text-xs mt-2">In movement</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-green-100 text-xs mb-1">On Time</p>
+            <p class="text-4xl font-bold">{{ summary.on_time }}</p>
+            <p class="text-green-100 text-xs mt-2">Expected arrival</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-orange-100 text-xs mb-1">Delayed</p>
+            <p class="text-4xl font-bold">{{ summary.delayed }}</p>
+            <p class="text-orange-100 text-xs mt-2">⚠️ Past ETA</p>
+        </div>
+    </div>
+
+    <!-- Load Status Overview -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Active Loads</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for load in loads %}
+            <div class="p-5 hover:bg-gray-50 transition cursor-pointer" onclick="toggleLoadDetails('{{ load.load_number }}')">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">📦</span>
+                            <div>
+                                <p class="font-mono font-bold text-gray-900">{{ load.load_number }}</p>
+                                <p class="text-sm text-gray-600">{{ load.vehicle_count }} vehicles</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-600">From:</span>
+                                <span class="font-semibold text-gray-900">{{ load.source }}</span>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                            </svg>
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-600">To:</span>
+                                <span class="font-semibold text-gray-900">{{ load.destination }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col lg:items-end gap-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span class="text-sm text-gray-600">Sent: {{ load.sent_date }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span class="text-sm text-gray-600">In transit: {{ load.days_in_transit }} days</span>
+                        </div>
+                        {% if load.is_delayed %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            ⚠️ Delayed
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            ✓ On Track
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Expandable Vehicle List -->
+                <div id="details-{{ load.load_number }}" class="hidden mt-4 pt-4 border-t border-gray-200">
+                    <h4 class="font-semibold text-sm text-gray-900 mb-3">Vehicles in this load:</h4>
+                    <div class="grid lg:grid-cols-2 gap-3">
+                        {% for vehicle in load.vehicles %}
+                        <div class="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                            <div>
+                                <p class="font-mono text-sm font-semibold text-gray-900">{{ vehicle.chassis_no }}</p>
+                                <p class="text-xs text-gray-600">{{ vehicle.model }} - {{ vehicle.variant }}</p>
+                            </div>
+                            <span class="text-xs text-gray-600">{{ vehicle.color }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- All In-Transit Vehicles Table -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">All In-Transit Vehicles</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Chassis No</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">From</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">To</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Load #</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Sent Date</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Days</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for vehicle in all_vehicles %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ vehicle.chassis_no }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ vehicle.model }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ vehicle.from_branch }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ vehicle.to_branch or 'Unknown' }}</td>
+                        <td class="px-4 py-3 text-sm font-mono text-gray-700">{{ vehicle.load_number }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-600">{{ vehicle.sent_date }}</td>
+                        <td class="px-4 py-3 text-center text-sm font-semibold text-gray-900">{{ vehicle.days_in_transit }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if vehicle.days_in_transit > 7 %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Delayed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Normal
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleLoadDetails(loadNumber) {
+    const details = document.getElementById(`details-${loadNumber}`);
+    details.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

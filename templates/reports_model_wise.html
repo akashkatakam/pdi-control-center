@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Model-wise Inventory Report - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">🏍️ Model-wise Inventory</h1>
+                <p class="text-sm text-gray-600">Detailed breakdown by model, variant, and color</p>
+            </div>
+        </div>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            🖨️ Print
+        </button>
+    </div>
+
+    <!-- Model Selection -->
+    <div class="bg-white rounded-xl shadow-lg p-4">
+        <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Select Model</label>
+                <select name="model" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="all" {% if selected_model == 'all' %}selected{% endif %}>All Models</option>
+                    {% for model in available_models %}
+                    <option value="{{ model }}" {% if selected_model == model %}selected{% endif %}>{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Model Cards -->
+    {% for model_data in models %}
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500 to-indigo-500 px-5 py-4 text-white flex justify-between items-center">
+            <div>
+                <h3 class="font-bold text-xl">{{ model_data.name }}</h3>
+                <p class="text-blue-100 text-sm mt-1">Total Stock: {{ model_data.total_units }} units</p>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-bold">{{ model_data.percentage }}%</p>
+                <p class="text-blue-100 text-xs">of inventory</p>
+            </div>
+        </div>
+
+        <!-- Variant Breakdown -->
+        <div class="p-5">
+            <h4 class="font-semibold text-gray-900 mb-3">Variants</h4>
+            <div class="grid lg:grid-cols-2 gap-4 mb-5">
+                {% for variant in model_data.variants %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ variant.name }}</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ variant.units }} units available</p>
+                        </div>
+                        <span class="text-lg font-bold text-blue-600">{{ variant.percentage }}%</span>
+                    </div>
+
+                    <!-- Branch-wise for this variant -->
+                    <div class="space-y-2">
+                        {% for branch in variant.branches %}
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-700">{{ branch.name }}</span>
+                            <span class="font-semibold text-gray-900">{{ branch.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Color Breakdown -->
+            <h4 class="font-semibold text-gray-900 mb-3">Colors</h4>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {% for color in model_data.colors %}
+                <div class="border border-gray-200 rounded-lg p-3 hover:shadow-md transition">
+                    <p class="text-sm font-medium text-gray-900">{{ color.name }}</p>
+                    <p class="text-2xl font-bold text-blue-600 mt-1">{{ color.count }}</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ color.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Detailed Table -->
+        <div class="border-t">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Chassis No</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Variant</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Color</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Branch</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Status</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Age (Days)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for vehicle in model_data.vehicles %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ vehicle.chassis_no }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ vehicle.variant }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ vehicle.color }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ vehicle.branch }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {{ vehicle.status }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center text-sm text-gray-700">{{ vehicle.age_days }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

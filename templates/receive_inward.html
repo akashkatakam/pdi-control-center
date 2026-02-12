@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Receive Inward - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header with Branch Indicator -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">📥 Receive Inward</h1>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-sm text-gray-600">Receiving at:</span>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                    📍 {{ current_branch_name }}
+                </span>
+            </div>
+        </div>
+        <button onclick="window.location.reload()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium">
+            🔄 Refresh Loads
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-orange-100 text-xs mb-1">Pending Loads</p>
+            <p class="text-4xl font-bold">{{ pending_count }}</p>
+            <p class="text-orange-100 text-xs mt-2">Awaiting receipt</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-blue-100 text-xs mb-1">Pending Vehicles</p>
+            <p class="text-4xl font-bold">{{ pending_vehicles }}</p>
+            <p class="text-blue-100 text-xs mt-2">Units to receive</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-red-100 text-xs mb-1">Urgent Loads</p>
+            <p class="text-4xl font-bold">{{ urgent_loads }}</p>
+            <p class="text-red-100 text-xs mt-2">⚠️ Over 5 days</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-green-100 text-xs mb-1">Today's Receipts</p>
+            <p class="text-4xl font-bold">{{ today_receipts }}</p>
+            <p class="text-green-100 text-xs mt-2">Vehicles received</p>
+        </div>
+    </div>
+
+    <!-- Pending Loads -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Pending Loads for {{ current_branch_name }}</h3>
+        </div>
+
+        {% if pending_loads %}
+        <div class="divide-y divide-gray-200">
+            {% for load in pending_loads %}
+            <div class="p-5 hover:bg-gray-50 transition">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <!-- Load Info -->
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">📦</span>
+                            <div>
+                                <p class="font-mono font-bold text-gray-900">{{ load.load_number }}</p>
+                                <p class="text-sm text-gray-600">From: <span class="font-semibold">{{ load.from_branch }}</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="text-gray-600">Sent: {{ load.sent_date }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="text-gray-600">{{ load.days_in_transit }} days in transit</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <span class="text-gray-600">{{ load.total_vehicles }} vehicles</span>
+                            </div>
+                        </div>
+
+                        {% if load.models_list %}
+                        <p class="text-xs text-gray-500 mt-2">Models: {{ load.models_list }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Status & Action -->
+                    <div class="flex flex-col lg:items-end gap-3">
+                        {% if load.is_urgent %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                            ⚠️ URGENT - Delayed
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                            ✓ On Time
+                        </span>
+                        {% endif %}
+
+                        <div class="flex gap-2">
+                            <button onclick="viewLoadDetails('{{ load.load_number }}')" 
+                                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium">
+                                👁️ View Details
+                            </button>
+                            <button onclick="receiveLoad('{{ load.load_number }}')" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+                                ✅ Receive Load
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expandable Details -->
+                <div id="details-{{ load.load_number }}" class="hidden mt-4 pt-4 border-t border-gray-200">
+                    <h4 class="font-semibold text-sm text-gray-900 mb-3">Chassis Numbers in this load:</h4>
+                    <div class="grid lg:grid-cols-3 gap-2">
+                        {% for chassis in load.chassis_numbers %}
+                        <div class="bg-gray-50 rounded px-3 py-2 text-sm font-mono text-gray-900">
+                            {{ chassis }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <div class="text-6xl mb-4">📭</div>
+            <p class="text-gray-600 font-medium">No pending loads</p>
+            <p class="text-sm text-gray-500 mt-1">All loads have been received at {{ current_branch_name }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recent Receipts -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Recent Receipts</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Load Number</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">From</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Received Date</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Vehicles</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Received By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for receipt in recent_receipts %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ receipt.load_number }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.from_branch }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ receipt.received_date }}</td>
+                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ receipt.vehicles }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.model }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ receipt.received_by }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Load Details Modal -->
+<div id="loadDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-900">Load Details</h3>
+            <button onclick="closeLoadDetailsModal()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div id="loadDetailsContent" class="p-6">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<script>
+function viewLoadDetails(loadNumber) {
+    const detailsDiv = document.getElementById(`details-${loadNumber}`);
+    detailsDiv.classList.toggle('hidden');
+}
+
+function closeLoadDetailsModal() {
+    document.getElementById('loadDetailsModal').classList.add('hidden');
+}
+
+async function receiveLoad(loadNumber) {
+    if (!confirm(`Are you sure you want to receive load ${loadNumber}?`)) {
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('load_number', loadNumber);
+
+        const response = await fetch('/logistics/receive/receive-load', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to receive load');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while receiving the load');
+    }
+}
+</script>
+{% endblock %}

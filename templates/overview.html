@@ -3,197 +3,227 @@
 {% block title %}Overview - PDI Control Center{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Page Header -->
-    <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-8 text-white">
-        <div class="flex items-center justify-between">
+<!-- Mobile-Optimized Overview -->
+<div class="space-y-4">
+    <!-- Welcome Card -->
+    <div class="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
+        <div class="flex justify-between items-start mb-4">
             <div>
-                <h1 class="text-3xl font-bold">👋 Good Morning, {{ user_role }}</h1>
-                <p class="mt-2 text-blue-100">Welcome to PDI Control Center</p>
+                <p class="text-blue-100 text-sm mb-1">👋 {{ greeting }}</p>
+                <h1 class="text-3xl font-bold">{{ username }}</h1>
+                <p class="text-blue-100 text-sm mt-1">{{ user_role }}</p>
             </div>
             <div class="text-right">
-                <p class="text-blue-100 text-sm">Branch</p>
-                <p class="text-2xl font-semibold">{{ branch_name }}</p>
+                <p class="text-xs text-blue-100 mb-1">Branch</p>
+                <p class="font-bold text-lg">{{ branch_name }}</p>
             </div>
         </div>
     </div>
-    
-    <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-2 gap-4">
         <!-- PDI Pending -->
-        <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">📝 PDI Pending</p>
-                    <p class="text-3xl font-bold text-yellow-600 mt-2">{{ pdi_pending }}</p>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⏳</span>
+                    </div>
                 </div>
-                <div class="bg-yellow-100 rounded-full p-3">
-                    <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
+                <p class="text-sm text-gray-600 mb-1">PDI Pending</p>
+                <p class="text-4xl font-bold text-orange-600">{{ pdi_pending }}</p>
+            </div>
+            <div class="bg-orange-50 px-5 py-2">
+                <a href="/task-manager?filter=pending" class="text-xs text-orange-700 font-medium">View tasks →</a>
             </div>
         </div>
-        
-        <!-- PDI In Progress -->
-        <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">🔧 In Progress</p>
-                    <p class="text-3xl font-bold text-orange-600 mt-2">{{ pdi_in_progress }}</p>
+
+        <!-- In Progress -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚡</span>
+                    </div>
                 </div>
-                <div class="bg-orange-100 rounded-full p-3">
-                    <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                </div>
+                <p class="text-sm text-gray-600 mb-1">In Progress</p>
+                <p class="text-4xl font-bold text-blue-600">{{ pdi_in_progress }}</p>
+            </div>
+            <div class="bg-blue-50 px-5 py-2">
+                <a href="/task-manager?filter=in_progress" class="text-xs text-blue-700 font-medium">View tasks →</a>
             </div>
         </div>
-        
+
         <!-- In Transit -->
-        <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">📦 In Transit</p>
-                    <p class="text-3xl font-bold text-blue-600 mt-2">{{ in_transit }}</p>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">🚚</span>
+                    </div>
                 </div>
-                <div class="bg-blue-100 rounded-full p-3">
-                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                    </svg>
-                </div>
+                <p class="text-sm text-gray-600 mb-1">In Transit</p>
+                <p class="text-4xl font-bold text-purple-600">{{ in_transit }}</p>
+            </div>
+            <div class="bg-purple-50 px-5 py-2">
+                <a href="/logistics/receive" class="text-xs text-purple-700 font-medium">Receive →</a>
             </div>
         </div>
-        
-        <!-- Stock On Hand -->
-        <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">🚗 Stock On Hand</p>
-                    <p class="text-3xl font-bold text-green-600 mt-2">{{ stock_on_hand }}</p>
+
+        <!-- Stock on Hand -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">📦</span>
+                    </div>
                 </div>
-                <div class="bg-green-100 rounded-full p-3">
-                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                    </svg>
-                </div>
+                <p class="text-sm text-gray-600 mb-1">Stock on Hand</p>
+                <p class="text-4xl font-bold text-green-600">{{ stock_on_hand }}</p>
+            </div>
+            <div class="bg-green-50 px-5 py-2">
+                <a href="/inventory/stock-levels" class="text-xs text-green-700 font-medium">View inventory →</a>
             </div>
         </div>
     </div>
-    
-    <!-- Universal Search -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center space-x-3 mb-4">
-            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <h2 class="text-lg font-semibold text-gray-900">Universal Search</h2>
-        </div>
-        
-        <input 
-            type="text" 
-            id="searchInput"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter Chassis No, Customer Name, or DC Number..."
-        >
-        
-        <div id="searchResults" class="mt-4 hidden">
-            <!-- Search results will be displayed here -->
-        </div>
-    </div>
-    
+
     <!-- Quick Actions -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="/task-manager" class="bg-white rounded-lg shadow hover:shadow-lg transition p-6 block">
-            <div class="flex items-center space-x-4">
-                <div class="bg-blue-100 rounded-full p-3">
-                    <span class="text-2xl">📋</span>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-gray-900">Assign Tasks</h3>
-                    <p class="text-sm text-gray-600">Manage PDI assignments</p>
-                </div>
-            </div>
-        </a>
-        
-        <a href="/inventory/stock-levels" class="bg-white rounded-lg shadow hover:shadow-lg transition p-6 block">
-            <div class="flex items-center space-x-4">
-                <div class="bg-green-100 rounded-full p-3">
-                    <span class="text-2xl">📊</span>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-gray-900">View Inventory</h3>
-                    <p class="text-sm text-gray-600">Check stock levels</p>
-                </div>
-            </div>
-        </a>
-        
-        <a href="/logistics/receive" class="bg-white rounded-lg shadow hover:shadow-lg transition p-6 block">
-            <div class="flex items-center space-x-4">
-                <div class="bg-purple-100 rounded-full p-3">
-                    <span class="text-2xl">📥</span>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-gray-900">Receive Stock</h3>
-                    <p class="text-sm text-gray-600">Process inward shipments</p>
-                </div>
-            </div>
-        </a>
+    <div class="bg-white rounded-xl shadow-lg p-5">
+        <h2 class="font-bold text-gray-900 mb-4 flex items-center">
+            <span class="text-xl mr-2">⚡</span>
+            Quick Actions
+        </h2>
+        <div class="grid grid-cols-2 gap-3">
+            <a href="/task-manager" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition">
+                <span class="text-3xl mb-2">📋</span>
+                <span class="text-sm font-semibold text-gray-900">Tasks</span>
+            </a>
+            <a href="/inventory/locator" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:shadow-md transition">
+                <span class="text-3xl mb-2">🔍</span>
+                <span class="text-sm font-semibold text-gray-900">Search</span>
+            </a>
+            <a href="/logistics/transfer" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:shadow-md transition">
+                <span class="text-3xl mb-2">🚚</span>
+                <span class="text-sm font-semibold text-gray-900">Transfer</span>
+            </a>
+            <a href="/logistics/receive" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:shadow-md transition">
+                <span class="text-3xl mb-2">📥</span>
+                <span class="text-sm font-semibold text-gray-900">Receive</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Universal Search -->
+    <div class="bg-white rounded-xl shadow-lg p-5">
+        <h2 class="font-bold text-gray-900 mb-4 flex items-center">
+            <span class="text-xl mr-2">🔍</span>
+            Quick Search
+        </h2>
+        <form id="searchForm" class="relative">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search chassis, customer, DC..."
+                class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                autocomplete="off"
+            >
+            <button type="submit" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </button>
+        </form>
+
+        <!-- Search Results -->
+        <div id="searchResults" class="hidden mt-4 space-y-2 max-h-60 overflow-y-auto"></div>
     </div>
 </div>
 
 <script>
-// Simple search functionality
+// Universal Search
+const searchForm = document.getElementById('searchForm');
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
 
 let searchTimeout;
+
 searchInput.addEventListener('input', function() {
     clearTimeout(searchTimeout);
     const query = this.value.trim();
-    
-    if (query.length < 2) {
+
+    if (query.length < 3) {
         searchResults.classList.add('hidden');
         return;
     }
-    
+
     searchTimeout = setTimeout(() => {
-        fetch(`/overview/search?query=${encodeURIComponent(query)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.vehicles.length === 0 && data.sales.length === 0) {
-                    searchResults.innerHTML = '<p class="text-gray-500 text-center py-4">No results found</p>';
-                } else {
-                    let html = '<div class="space-y-4">';
-                    
-                    if (data.vehicles.length > 0) {
-                        html += '<div><h3 class="font-semibold text-gray-900 mb-2">Vehicles</h3>';
-                        data.vehicles.forEach(v => {
-                            html += `<div class="border-l-4 border-blue-500 pl-4 py-2 mb-2">
-                                        <p class="font-medium">${v.chassis_no} - ${v.model}</p>
-                                        <p class="text-sm text-gray-600">${v.branch} | ${v.status}</p>
-                                     </div>`;
-                        });
-                        html += '</div>';
-                    }
-                    
-                    if (data.sales.length > 0) {
-                        html += '<div><h3 class="font-semibold text-gray-900 mb-2">Sales</h3>';
-                        data.sales.forEach(s => {
-                            html += `<div class="border-l-4 border-green-500 pl-4 py-2 mb-2">
-                                        <p class="font-medium">${s.customer} - ${s.chassis_no}</p>
-                                        <p class="text-sm text-gray-600">${s.branch} | ${s.pdi_status}</p>
-                                     </div>`;
-                        });
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
-                    searchResults.innerHTML = html;
-                }
-                searchResults.classList.remove('hidden');
-            });
+        performSearch(query);
     }, 300);
+});
+
+searchForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const query = searchInput.value.trim();
+    if (query.length >= 3) {
+        performSearch(query);
+    }
+});
+
+async function performSearch(query) {
+    try {
+        const response = await fetch(`/overview/search?query=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        displayResults(data);
+    } catch (error) {
+        console.error('Search error:', error);
+    }
+}
+
+function displayResults(data) {
+    if ((!data.vehicles || data.vehicles.length === 0) && (!data.sales || data.sales.length === 0)) {
+        searchResults.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No results found</p>';
+        searchResults.classList.remove('hidden');
+        return;
+    }
+
+    let html = '<div class="space-y-2">';
+
+    if (data.vehicles && data.vehicles.length > 0) {
+        data.vehicles.forEach(v => {
+            html += `
+                <div class="border-l-4 border-blue-500 bg-blue-50 p-3 rounded">
+                    <p class="font-mono font-semibold text-sm">${v.chassis_no}</p>
+                    <p class="text-xs text-gray-600">${v.model} - ${v.branch}</p>
+                    <p class="text-xs text-gray-500">${v.status}</p>
+                </div>
+            `;
+        });
+    }
+
+    if (data.sales && data.sales.length > 0) {
+        data.sales.forEach(s => {
+            html += `
+                <div class="border-l-4 border-green-500 bg-green-50 p-3 rounded">
+                    <p class="font-semibold text-sm">${s.customer}</p>
+                    <p class="text-xs text-gray-600 font-mono">${s.chassis_no}</p>
+                    <p class="text-xs text-gray-500">${s.pdi_status}</p>
+                </div>
+            `;
+        });
+    }
+
+    html += '</div>';
+
+    searchResults.innerHTML = html;
+    searchResults.classList.remove('hidden');
+}
+
+// Close results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchForm.contains(e.target)) {
+        searchResults.classList.add('hidden');
+    }
 });
 </script>
 {% endblock %}

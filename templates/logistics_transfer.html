@@ -5,30 +5,441 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Page Header -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h1 class="text-3xl font-bold text-gray-900">📦 Transfer Stock</h1>
-        <p class="text-gray-600 mt-1">Manage outward transfers to other branches</p>
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🚚 Transfer Stock</h1>
+            <p class="text-sm text-gray-600 mt-1">Scan multiple vehicles for batch transfer</p>
+        </div>
+        <a href="/logistics/receive" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-center">
+            ← Back to Receive
+        </a>
     </div>
-    
-    <!-- Tabs -->
-    <div class="bg-white rounded-lg shadow">
-        <div class="border-b border-gray-200 px-6 py-4">
-            <div class="flex space-x-4">
-                <a href="/logistics/receive" class="px-4 py-2 text-gray-600 hover:text-gray-900">
-                    📥 Receive (Inward)
-                </a>
-                <button class="px-4 py-2 border-b-2 border-blue-600 text-blue-600 font-medium">
-                    📦 Transfer / Outward
+
+    <!-- Batch Summary Card -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-xl p-6 text-white">
+        <div class="flex justify-between items-center">
+            <div>
+                <p class="text-blue-100 text-sm mb-1">Vehicles in Batch</p>
+                <p class="text-5xl font-bold" id="batchCount">0</p>
+            </div>
+            <div class="text-right">
+                <button
+                    onclick="clearBatch()"
+                    class="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg text-sm font-medium backdrop-blur-sm transition"
+                >
+                    🗑️ Clear All
                 </button>
             </div>
         </div>
-        
-        <div class="p-6">
-            <div class="text-center py-12 text-gray-500">
-                <p class="text-lg">🚧 Transfer functionality coming soon</p>
-                <p class="text-sm mt-2">This section will allow you to create outward transfers to other branches</p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6">
+        <!-- Left: QR Scanner -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-gray-900 px-4 sm:px-6 py-4 text-white">
+                <h2 class="text-lg font-semibold flex items-center">
+                    <span class="text-2xl mr-2">📷</span>
+                    Scan Vehicles
+                </h2>
+            </div>
+
+            <div class="p-4 sm:p-6">
+                <!-- Camera View -->
+                <div class="relative mb-4">
+                    <div id="qr-reader" class="w-full rounded-lg overflow-hidden border-4 border-blue-500 shadow-xl" style="min-height: 300px;"></div>
+
+                    <!-- Manual Entry Toggle -->
+                    <button
+                        type="button"
+                        onclick="toggleManualEntry()"
+                        class="absolute bottom-4 right-4 bg-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                        ⌨️ Manual
+                    </button>
+                </div>
+
+                <!-- Manual Entry -->
+                <div id="manualEntry" class="hidden mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🔢 Enter Chassis Number
+                    </label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            id="manualChassisInput"
+                            placeholder="Chassis number..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                            onkeypress="if(event.key === 'Enter') { event.preventDefault(); processManualEntry(); }"
+                        >
+                        <button
+                            type="button"
+                            onclick="processManualEntry()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Last Scanned -->
+                <div id="lastScanned" class="hidden bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-green-600 font-medium">✅ Added to batch</p>
+                            <p class="text-sm font-semibold text-green-900" id="lastScannedChassis">-</p>
+                        </div>
+                        <button type="button" onclick="removeLastScanned()" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-sm text-blue-900 font-medium mb-2">📋 How to use:</p>
+                    <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                        <li>Scan QR codes of all vehicles</li>
+                        <li>Each scan adds to the batch</li>
+                        <li>Review list on the right →</li>
+                        <li>Select destination and transfer</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Batch List & Transfer -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-indigo-600 px-4 sm:px-6 py-4 text-white">
+                <h2 class="text-lg font-semibold flex items-center justify-between">
+                    <span class="flex items-center">
+                        <span class="text-2xl mr-2">📦</span>
+                        Batch Review
+                    </span>
+                    <span class="text-sm bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                        <span id="listCount">0</span> vehicles
+                    </span>
+                </h2>
+            </div>
+
+            <div class="p-4 sm:p-6">
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center py-12 text-gray-400">
+                    <div class="text-5xl mb-3">📦</div>
+                    <p class="text-sm font-medium">No vehicles scanned yet</p>
+                    <p class="text-xs mt-1">Start scanning to add vehicles</p>
+                </div>
+
+                <!-- Vehicle List -->
+                <div id="vehicleListContainer" class="hidden">
+                    <div id="vehicleList" class="space-y-2 max-h-80 overflow-y-auto mb-6">
+                        <!-- Vehicles will be added here dynamically -->
+                    </div>
+
+                    <!-- Transfer Form -->
+                    <form method="POST" action="/logistics/transfer-batch" id="transferForm" class="space-y-4 border-t pt-4">
+                        <input type="hidden" name="chassis_numbers" id="chassisNumbers">
+
+                        <!-- Destination Branch -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                📍 Transfer To
+                            </label>
+                            <select name="destination_branch" required class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base font-medium">
+                                <option value="">Select destination...</option>
+                                {% for branch in destination_branches %}
+                                <option value="{{ branch.Branch_ID }}">{{ branch.Branch_Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Load Reference -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                🔖 Load Reference Number
+                            </label>
+                            <input
+                                type="text"
+                                name="load_reference"
+                                required
+                                placeholder="e.g., LOAD-2026-001"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base"
+                            >
+                            <p class="text-xs text-gray-500 mt-1">💡 This identifies the truck/batch</p>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg transition shadow-lg text-base"
+                        >
+                            ✈️ Transfer <span id="transferCount">0</span> Vehicles
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+<!-- Include QR Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+let html5QrCode;
+let scannedVehicles = [];
+let lastScannedChassis = null;
+let isProcessing = false;
+
+// Initialize QR Scanner
+function initScanner() {
+    html5QrCode = new Html5Qrcode("qr-reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        },
+        onScanSuccess,
+        onScanFailure
+    ).catch(err => {
+        console.error("Camera error:", err);
+        showToast("📷 Camera not available. Use manual entry.", "warning");
+        document.getElementById('manualEntry').classList.remove('hidden');
+    });
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    if (isProcessing) return;
+
+    console.log("QR Code detected:", decodedText);
+
+    // Check if already scanned
+    if (scannedVehicles.find(v => v.chassis_no === decodedText)) {
+        showToast("⚠️ Already in batch: " + decodedText.substring(0, 10), "warning");
+        return;
+    }
+
+    // Fetch and add vehicle
+    isProcessing = true;
+    fetchVehicleDetails(decodedText);
+}
+
+function onScanFailure(error) {
+    // Ignore scanning errors (happens frequently)
+}
+
+async function fetchVehicleDetails(chassisNo) {
+    try {
+        const response = await fetch(`/logistics/vehicle-details?chassis_no=${encodeURIComponent(chassisNo)}`);
+        const data = await response.json();
+
+        if (data.error) {
+            showToast("❌ " + data.error, "error");
+        } else {
+            addVehicleToBatch(data);
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+        showToast("❌ Failed to fetch vehicle details", "error");
+    } finally {
+        isProcessing = false;
+    }
+}
+
+function addVehicleToBatch(vehicle) {
+    scannedVehicles.push(vehicle);
+    lastScannedChassis = vehicle.chassis_no;
+    updateUI();
+    showToast("✅ Added: " + vehicle.model, "success");
+
+    // Show last scanned
+    document.getElementById('lastScanned').classList.remove('hidden');
+    document.getElementById('lastScannedChassis').textContent = vehicle.chassis_no + " - " + vehicle.model;
+
+    console.log("Current batch:", scannedVehicles);
+}
+
+function removeVehicle(chassisNo) {
+    scannedVehicles = scannedVehicles.filter(v => v.chassis_no !== chassisNo);
+    if (lastScannedChassis === chassisNo) {
+        lastScannedChassis = null;
+        document.getElementById('lastScanned').classList.add('hidden');
+    }
+    updateUI();
+    showToast("🗑️ Removed from batch", "info");
+}
+
+function removeLastScanned() {
+    if (lastScannedChassis) {
+        removeVehicle(lastScannedChassis);
+    }
+}
+
+function clearBatch() {
+    if (scannedVehicles.length === 0) {
+        showToast("ℹ️ Batch is already empty", "info");
+        return;
+    }
+
+    if (confirm(`Clear all ${scannedVehicles.length} vehicles from batch?`)) {
+        scannedVehicles = [];
+        lastScannedChassis = null;
+        document.getElementById('lastScanned').classList.add('hidden');
+        updateUI();
+        showToast("🗑️ Batch cleared", "info");
+    }
+}
+
+function updateUI() {
+    const count = scannedVehicles.length;
+
+    console.log("Updating UI with", count, "vehicles");
+
+    // Update counts
+    document.getElementById('batchCount').textContent = count;
+    document.getElementById('listCount').textContent = count;
+    document.getElementById('transferCount').textContent = count;
+
+    const emptyState = document.getElementById('emptyState');
+    const vehicleListContainer = document.getElementById('vehicleListContainer');
+    const vehicleList = document.getElementById('vehicleList');
+
+    if (count === 0) {
+        // Show empty state
+        emptyState.classList.remove('hidden');
+        vehicleListContainer.classList.add('hidden');
+    } else {
+        // Show vehicle list
+        emptyState.classList.add('hidden');
+        vehicleListContainer.classList.remove('hidden');
+
+        // Build vehicle list HTML
+        vehicleList.innerHTML = scannedVehicles.map((v, index) => `
+            <div class="border-2 border-gray-200 rounded-lg p-3 hover:border-blue-300 transition bg-white">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-1">
+                            <span class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2">
+                                ${index + 1}
+                            </span>
+                            <span class="font-semibold text-gray-900 text-sm">${v.chassis_no}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 ml-8">
+                            <div>${v.model} - ${v.variant}</div>
+                            <div class="text-gray-500">${v.color}</div>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onclick="removeVehicle('${v.chassis_no}')"
+                        class="text-red-600 hover:text-red-700 ml-2 p-1"
+                        title="Remove"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Update hidden input
+    document.getElementById('chassisNumbers').value = scannedVehicles.map(v => v.chassis_no).join(',');
+}
+
+function toggleManualEntry() {
+    const manualEntry = document.getElementById('manualEntry');
+    manualEntry.classList.toggle('hidden');
+
+    if (!manualEntry.classList.contains('hidden')) {
+        document.getElementById('manualChassisInput').focus();
+    }
+}
+
+function processManualEntry() {
+    const input = document.getElementById('manualChassisInput');
+    const chassisNo = input.value.trim();
+
+    if (!chassisNo) {
+        showToast("⚠️ Enter chassis number", "warning");
+        return;
+    }
+
+    // Check if already scanned
+    if (scannedVehicles.find(v => v.chassis_no === chassisNo)) {
+        showToast("⚠️ Already in batch", "warning");
+        input.value = '';
+        return;
+    }
+
+    isProcessing = true;
+    fetchVehicleDetails(chassisNo);
+    input.value = '';
+}
+
+function showToast(message, type = "info") {
+    const colors = {
+        success: "bg-green-500",
+        error: "bg-red-500",
+        warning: "bg-orange-500",
+        info: "bg-blue-500"
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300`;
+    toast.textContent = message;
+
+    const container = document.getElementById('toastContainer');
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Page loaded, initializing scanner...");
+    initScanner();
+});
+</script>
+
+<style>
+#qr-reader video {
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 0.5rem;
+}
+
+#qr-reader {
+    background: #000;
+}
+
+/* Smooth scrolling for vehicle list */
+#vehicleList {
+    scroll-behavior: smooth;
+}
+
+/* Toast animations */
+#toastContainer > div {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+</style>
 {% endblock %}

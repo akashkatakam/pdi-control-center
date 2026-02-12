@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Summary Report - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">📦 Stock Summary Report</h1>
+                <p class="text-sm text-gray-600">Current inventory across all branches</p>
+            </div>
+        </div>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            🖨️ Print
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-green-100 text-xs mb-1">Total Stock</p>
+            <p class="text-4xl font-bold">{{ summary.total_stock }}</p>
+            <p class="text-green-100 text-xs mt-2">Across all branches</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-blue-100 text-xs mb-1">Available</p>
+            <p class="text-4xl font-bold">{{ summary.available }}</p>
+            <p class="text-blue-100 text-xs mt-2">Ready for sale</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-orange-100 text-xs mb-1">Reserved</p>
+            <p class="text-4xl font-bold">{{ summary.reserved }}</p>
+            <p class="text-orange-100 text-xs mt-2">Under PDI/Sold</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-purple-100 text-xs mb-1">In Transit</p>
+            <p class="text-4xl font-bold">{{ summary.in_transit }}</p>
+            <p class="text-purple-100 text-xs mt-2">Moving between branches</p>
+        </div>
+    </div>
+
+    <!-- Branch-wise Stock -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Branch-wise Stock Distribution</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Branch</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Total Stock</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Available</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Reserved</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Days Stock</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for branch in branches %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ branch.name }}</td>
+                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ branch.total }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.available }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.reserved }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.days_stock }} days</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if branch.stock_level == 'good' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                ✓ Good
+                            </span>
+                            {% elif branch.stock_level == 'low' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                ⚠️ Low
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                ⚠️ Critical
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Model-wise Stock -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b flex justify-between items-center">
+            <h3 class="font-bold text-lg text-gray-900">Model-wise Stock</h3>
+            <a href="/reports/model-wise" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                View Detailed →
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Total Units</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">% of Stock</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Top Variant</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Top Color</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for model in models %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ model.name }}</td>
+                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ model.units }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.percentage }}%</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.top_variant }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.top_color }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Receiving Report - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">📥 Receiving Report</h1>
+                <p class="text-sm text-gray-600">Inward receiving history and analysis</p>
+            </div>
+        </div>
+        <button onclick="exportToExcel()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            📥 Export
+        </button>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="bg-white rounded-xl shadow-lg p-4">
+        <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+                <input type="date" name="from_date" value="{{ from_date }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+                <input type="date" name="to_date" value="{{ to_date }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Source</label>
+                <select name="source" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="all" {% if source == 'all' %}selected{% endif %}>All Sources</option>
+                    {% for src in sources %}
+                    <option value="{{ src }}" {% if source == src %}selected{% endif %}>{{ src }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Apply</button>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-green-100 text-xs mb-1">Total Received</p>
+            <p class="text-4xl font-bold">{{ summary.total_received }}</p>
+            <p class="text-green-100 text-xs mt-2">Vehicles</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-blue-100 text-xs mb-1">Loads Received</p>
+            <p class="text-4xl font-bold">{{ summary.loads_received }}</p>
+            <p class="text-blue-100 text-xs mt-2">Total loads</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-purple-100 text-xs mb-1">Today</p>
+            <p class="text-4xl font-bold">{{ summary.today_received }}</p>
+            <p class="text-purple-100 text-xs mt-2">Vehicles received</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <p class="text-orange-100 text-xs mb-1">This Week</p>
+            <p class="text-4xl font-bold">{{ summary.week_received }}</p>
+            <p class="text-orange-100 text-xs mt-2">Vehicles received</p>
+        </div>
+    </div>
+
+    <!-- Daily Receiving Trend -->
+    <div class="bg-white rounded-xl shadow-lg p-5">
+        <h3 class="font-bold text-lg text-gray-900 mb-4">📈 Daily Receiving Trend</h3>
+        <div class="space-y-2">
+            {% for day in daily_trend %}
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-700">{{ day.date }}</span>
+                    <span class="font-semibold text-gray-900">{{ day.count }} vehicles ({{ day.loads }} loads)</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full flex items-center justify-end pr-2" 
+                         style="width: {{ day.percentage }}%">
+                        {% if day.percentage > 30 %}
+                        <span class="text-white text-xs font-bold">{{ day.count }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Source-wise Breakdown -->
+    <div class="bg-white rounded-xl shadow-lg p-5">
+        <h3 class="font-bold text-lg text-gray-900 mb-4">📦 Source-wise Breakdown</h3>
+        <div class="grid lg:grid-cols-2 gap-4">
+            {% for source_data in source_breakdown %}
+            <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ source_data.name }}</p>
+                        <p class="text-xs text-gray-600 mt-1">{{ source_data.loads }} loads received</p>
+                    </div>
+                    <span class="text-2xl font-bold text-blue-600">{{ source_data.vehicles }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ source_data.percentage }}%"></div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">{{ source_data.percentage }}% of total</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Model-wise Receiving -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Model Distribution</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Units Received</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">% of Total</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Top Variant</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Top Color</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for model in model_breakdown %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ model.name }}</td>
+                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ model.count }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.percentage }}%</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ model.top_variant }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ model.top_color }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Receipts -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-50 px-5 py-4 border-b">
+            <h3 class="font-bold text-lg text-gray-900">Recent Receipt Details</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Load #</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Source</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Chassis No</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Variant</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Color</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Received By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for receipt in receipts %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.date }}</td>
+                        <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ receipt.load_number }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.source }}</td>
+                        <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ receipt.chassis_no }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ receipt.model }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.variant }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ receipt.color }}</td>
+                        <td class="px-4 py-3 text-center text-sm text-gray-600">{{ receipt.received_by or 'Auto' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportToExcel() {
+    window.location.href = '/reports/receiving/export?from_date={{ from_date }}&to_date={{ to_date }}';
+}
+</script>
+{% endblock %}
