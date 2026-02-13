@@ -1138,3 +1138,78 @@ async def export_report(
         )
 
     return JSONResponse({"error": "Format not supported yet"}, status_code=400)
+
+
+@router.get("/daily-sales-transfers", response_class=HTMLResponse)
+async def daily_sales_transfers_report(
+        request: Request,
+        from_date: str = Query(None),
+        to_date: str = Query(None),
+        db: Session = Depends(get_db)
+):
+    """Daily Sales and Transfer Report"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    context = get_context_data(request, db)
+    active_branch_id = context["active_context"]
+
+    # Set default dates
+    if not from_date:
+        from_date = datetime.now().strftime("%Y-%m-%d")
+    if not to_date:
+        to_date = datetime.now().strftime("%Y-%m-%d")
+
+    from_dt = datetime.strptime(from_date, "%Y-%m-%d")
+    to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+
+    # Get managed branches
+    managed_branches = branch_service.get_managed_branches(db, active_branch_id)
+    branch_ids = [branch.Branch_ID for branch in managed_branches]
+
+    # PART 1: SALES SUMMARY
+    sales_data = db.query(
+        Branch.Branch_Name,
+        InventoryTransaction.Model,
+        InventoryTransaction.Variant,
+        func.sum(InventoryTransaction.Quantity).label("Total_Sold")
+    ).join(
+        Branch, InventoryTransaction.Current_Branch_ID == Branch.Branch_ID
+    ).filter(
+        InventoryTransaction.Transaction_Type == "SALE",
+        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
+        InventoryTransaction.Date >= from_dt.date(),
+        InventoryTransaction.Date <= to_dt.date()
+    ).group_by(
+        Branch.Branch_Name,
+        InventoryTransaction.Model,
+        InventoryTransaction.Variant
+    ).all()
+
+    # PART 2: TRANSFER SUMMARY (Outward)
+    transfer_data = db.query(
+        Branch.Branch_Name.label("From_Branch"),
+        func.count(distinct(InventoryTransaction.Load_Number)).label("Load_Count"),
+        func.sum(InventoryTransaction.Quantity).label("Total_Vehicles")
+    ).join(
+        Branch, InventoryTransaction.From_Branch_ID == Branch.Branch_ID
+    ).filter(
+        InventoryTransaction.Transaction_Type == "OUTWARD",
+        InventoryTransaction.From_Branch_ID.in_(branch_ids),
+        InventoryTransaction.Date >= from_dt.date(),
+        InventoryTransaction.Date <= to_dt.date()
+    ).group_by(Branch.Branch_Name).all()
+
+    return templates.TemplateResponse(
+        "reports_daily_sales_transfers.html",
+        {
+            "request": request,
+            **context,
+            "from_date": from_date,
+            "to_date": to_date,
+            "sales_data": sales_data,
+            "transfer_data": transfer_data,
+            "current_page": "reports"
+        }
+    )

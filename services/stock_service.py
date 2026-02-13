@@ -69,6 +69,7 @@ def search_vehicles(db: Session, chassis: str = None, model: str = None, variant
         models.VehicleMaster.color,
         models.VehicleMaster.status,
         models.VehicleMaster.dc_number,
+        models.VehicleMaster.current_branch_id,
         models.Branch.Branch_Name.label("Current_Location")
     ).join(models.Branch, models.VehicleMaster.current_branch_id == models.Branch.Branch_ID)
 

@@ -331,3 +331,128 @@ async def create_transfer(
             "success": False,
             "message": f"Error creating transfer: {str(e)}"
         }, status_code=500)
+
+
+@router.get("/manual-sale", response_class=HTMLResponse)
+async def manual_sale_page(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Manual Sale Logging - For sub-branches without DC generation"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    context = get_context_data(request, db)
+    active_branch_id = context["active_context"]
+
+    # Get available stock
+    available_vehicles = db.query(VehicleMaster).filter(
+        VehicleMaster.current_branch_id == active_branch_id,
+        VehicleMaster.status == "In Stock"
+    ).all()
+
+    # Recent manual sales
+    recent_sales = db.query(InventoryTransaction).filter(
+        InventoryTransaction.Current_Branch_ID == active_branch_id,
+        InventoryTransaction.Transaction_Type == "SALE",
+        InventoryTransaction.Remarks.like("%Manual Sale%")
+    ).order_by(InventoryTransaction.Date.desc()).limit(10).all()
+
+    return templates.TemplateResponse(
+        "logistics_manual_sale.html",
+        {
+            "request": request,
+            **context,
+            "available_vehicles": available_vehicles,
+            "recent_sales": recent_sales,
+            "current_page": "logistics"
+        }
+    )
+
+
+@router.post("/manual-sale/create")
+async def create_manual_sale(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Process manual sale from sub-branches"""
+
+    if not check_auth(request):
+        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
+
+    try:
+        form_data = await request.form()
+        chassis_numbers = form_data.get("chassis_numbers", "").split(",")
+        chassis_numbers = [c.strip() for c in chassis_numbers if c.strip()]
+
+        sale_date_str = form_data.get("sale_date")
+        remarks = form_data.get("remarks", "Manual Sale - Sub Branch")
+
+        if not chassis_numbers:
+            return JSONResponse({
+                "success": False,
+                "message": "At least one chassis number is required"
+            })
+
+        context = get_context_data(request, db)
+        branch_id = context["active_context"]
+
+        sale_date = datetime.strptime(sale_date_str, "%Y-%m-%d").date() if sale_date_str else datetime.now().date()
+
+        sold_count = 0
+
+        for chassis_no in chassis_numbers:
+            # Get vehicle from VehicleMaster
+            vehicle = db.query(VehicleMaster).filter(
+                VehicleMaster.chassis_no == chassis_no,
+                VehicleMaster.current_branch_id == branch_id,
+                VehicleMaster.status == "In Stock"
+            ).first()
+
+            if not vehicle:
+                continue
+
+            # Update vehicle status to Sold
+            vehicle.status = "Sold"
+
+            # Create SALE transaction
+            sale_txn = InventoryTransaction(
+                Date=sale_date,
+                chassis_no=chassis_no,
+                Model=vehicle.model,
+                Variant=vehicle.variant,
+                Color=vehicle.color,
+                Transaction_Type="SALE",
+                From_Branch_ID=None,
+                To_Branch_ID=None,
+                Current_Branch_ID=branch_id,
+                Quantity=1,
+                Load_Number=None,
+                Status="Completed",
+                Remarks=f"Manual Sale: {remarks}"
+            )
+            db.add(sale_txn)
+
+            sold_count += 1
+
+        if sold_count == 0:
+            db.rollback()
+            return JSONResponse({
+                "success": False,
+                "message": "No valid vehicles found. Please check chassis numbers."
+            })
+
+        db.commit()
+
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully logged {sold_count} manual sale(s)"
+        })
+
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({
+            "success": False,
+            "message": f"Error logging manual sale: {str(e)}"
+        }, status_code=500)
