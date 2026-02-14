@@ -229,7 +229,8 @@ def get_pending_loads_for_branch(db: Session, branch_id: str):
     """
     # Get all in-transit vehicles
     in_transit_vehicles = db.query(models.VehicleMaster).filter(
-        models.VehicleMaster.status == "In Transit"
+        models.VehicleMaster.status == "In Transit",
+        models.VehicleMaster.current_branch_id == branch_id
     ).all()
 
     # Group by load reference
