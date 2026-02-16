@@ -46,6 +46,16 @@ async def get_service_worker():
         headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"}
     )
 
+@app.get("/static/icons/{icon_name}")
+async def get_icon(icon_name: str):
+    icon_path = f"static/icons/{icon_name}"
+    if os.path.exists(icon_path):
+        return FileResponse(
+            icon_path,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=31536000"}
+        )
+    return {"error": "Icon not found"}
 
 
 
