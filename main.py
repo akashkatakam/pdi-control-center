@@ -28,14 +28,24 @@ Path("static/js").mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Serve manifest.json at root level (optional but recommended)
+# Serve manifest.json at root level with proper content type
 @app.get("/manifest.json")
 async def get_manifest():
-    return FileResponse("static/manifest.json")
+    return FileResponse(
+        "static/manifest.json",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"}
+    )
 
-# Serve service worker at root level
+# Serve service worker at root level with proper content type
 @app.get("/sw.js")
 async def get_service_worker():
-    return FileResponse("static/sw.js")
+    return FileResponse(
+        "static/sw.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"}
+    )
+
 
 
 
