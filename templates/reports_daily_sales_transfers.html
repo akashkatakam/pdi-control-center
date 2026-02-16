@@ -1,154 +1,324 @@
 {% extends "base.html" %}
 
-{% block title %}Daily Sales & Transfers - PDI Control Center{% endblock %}
+{% block title %}Detailed Sales & Transfers - PDI Control Center{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">📊 Daily Sales & Transfers Report</h1>
-            <p class="text-sm text-gray-600 mt-1">Combined view of sales and stock movements</p>
-        </div>
-        <a href="/reports" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium">
-            ← Back to Reports
-        </a>
-    </div>
+<div class="max-w-7xl mx-auto space-y-6">
 
-    <!-- Date Range Filter -->
-    <div class="bg-white rounded-lg shadow-lg p-6">
-        <form method="GET" action="/reports/daily-sales-transfers" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <!-- Date Range Selector - Clean and Minimal -->
+    <div class="bg-white rounded-lg shadow-sm p-4 print:hidden">
+        <form method="GET" action="/reports/daily-sales-transfers" class="flex flex-wrap gap-3 items-end">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
                 <input
                     type="date"
-                    name="from_date"
-                    value="{{ from_date }}"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
+                    name="start_date"
+                    value="{{ start_date }}"
+                    class="px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                 >
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                <label class="block text-xs font-medium text-gray-600 mb-1">End Date</label>
                 <input
                     type="date"
-                    name="to_date"
-                    value="{{ to_date }}"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
+                    name="end_date"
+                    value="{{ end_date }}"
+                    max="{{ end_date }}"
+                    class="px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                 >
             </div>
-            <div class="md:col-span-2 flex items-end gap-2">
-                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg">
-                    🔍 Generate Report
-                </button>
-                <button type="button" onclick="window.print()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                    🖨️ Print
-                </button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700">
+                View Report
+            </button>
+            <div class="flex gap-2 ml-auto">
+                <button type="button" onclick="setQuickRange('today')" class="px-3 py-2 text-xs border rounded hover:bg-gray-50">Today</button>
+                <button type="button" onclick="setQuickRange('week')" class="px-3 py-2 text-xs border rounded hover:bg-gray-50">Last 7 Days</button>
+                <button type="button" onclick="setQuickRange('month')" class="px-3 py-2 text-xs border rounded hover:bg-gray-50">Last 30 Days</button>
             </div>
         </form>
     </div>
 
-    <!-- SALES SUMMARY -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div class="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4 text-white">
-            <h2 class="text-xl font-bold flex items-center">
-                <span class="text-2xl mr-2">💰</span>
-                Sales Summary
-            </h2>
-            <p class="text-sm text-green-100 mt-1">{{ from_date }} to {{ to_date }}</p>
-        </div>
-        <div class="p-6">
-            {% if sales_data %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variant</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for sale in sales_data %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ sale.Branch_Name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ sale.Model }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ sale.Variant }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-green-600">{{ sale.Total_Sold }}</td>
-                        </tr>
-                        {% endfor %}
-                        <tr class="bg-green-50 font-bold">
-                            <td colspan="3" class="px-6 py-4 text-sm text-gray-900">TOTAL SALES</td>
-                            <td class="px-6 py-4 text-sm text-right text-green-700">{{ sales_data|map(attribute='Total_Sold')|sum }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-12 text-gray-400">
-                <div class="text-5xl mb-3">📊</div>
-                <p class="text-sm font-medium">No sales recorded in this period</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
+    <!-- Sales Summary Report -->
+    {% if sales_data %}
+    <div class="bg-white rounded-lg shadow-sm print:shadow-none" id="salesReport">
 
-    <!-- TRANSFER SUMMARY -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
-            <h2 class="text-xl font-bold flex items-center">
-                <span class="text-2xl mr-2">🚚</span>
-                Transfer Summary (Outward)
-            </h2>
-            <p class="text-sm text-blue-100 mt-1">Stock movements from head branches</p>
+        <!-- Report Header -->
+        <div class="border-b-2 border-gray-200 p-6 print:p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center print:w-8 print:h-8">
+                            <span class="text-xl">💰</span>
+                        </div>
+                        <h1 class="text-2xl font-bold text-gray-900 print:text-xl">Sales Summary</h1>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        <strong>Period:</strong> {{ start_date_display }} to {{ end_date_display }}
+                    </p>
+                </div>
+                <button onclick="window.print()" class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200 print:hidden">
+                    📄 Print/Save PDF
+                </button>
+            </div>
         </div>
-        <div class="p-6">
-            {% if transfer_data %}
+
+        <!-- Territory Reports -->
+        {% for territory_name, territory_data in sales_data.items() %}
+        <div class="p-6 print:p-4 {% if not loop.last %}border-b border-gray-200{% endif %}">
+
+            <h2 class="text-lg font-bold text-gray-800 mb-4 print:text-base">{{ territory_name }}</h2>
+
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Branch</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Loads</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Vehicles</th>
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 w-48">
+                                Branch Name
+                            </th>
+                            {% for model in territory_data['models'] %}
+                            <th class="border border-gray-300 px-4 py-3 text-center text-xs font-semibold text-gray-700 {% if model == 'TOTAL' %}bg-blue-50{% endif %}">
+                                {{ model }}
+                            </th>
+                            {% endfor %}
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for transfer in transfer_data %}
+                    <tbody>
+                        {% for branch in territory_data['branches'] %}
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ transfer.From_Branch }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">{{ transfer.Load_Count }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-blue-600">{{ transfer.Total_Vehicles }}</td>
+                            <td class="border border-gray-300 px-4 py-3 text-sm font-medium text-gray-900">
+                                {{ branch['name'] }}
+                            </td>
+                            {% for model in territory_data['models'] %}
+                            <td class="border border-gray-300 px-4 py-3 text-center {% if model == 'TOTAL' %}bg-blue-50 font-bold{% endif %}">
+                                {% if model in branch['data'] %}
+                                    {% set value = branch['data'][model]|int %}
+                                    {% if value > 0 %}
+                                        <span class="inline-block px-3 py-1 text-sm font-semibold rounded {% if model == 'TOTAL' %}bg-blue-600 text-white{% else %}bg-green-100 text-green-800{% endif %}">
+                                            {{ value }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400 text-sm">0</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-400 text-sm">0</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
                         </tr>
                         {% endfor %}
-                        <tr class="bg-blue-50 font-bold">
-                            <td class="px-6 py-4 text-sm text-gray-900">TOTAL TRANSFERS</td>
-                            <td class="px-6 py-4 text-sm text-right text-blue-700">{{ transfer_data|map(attribute='Load_Count')|sum }}</td>
-                            <td class="px-6 py-4 text-sm text-right text-blue-700">{{ transfer_data|map(attribute='Total_Vehicles')|sum }}</td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <div class="text-center py-12 text-gray-400">
-                <div class="text-5xl mb-3">🚚</div>
-                <p class="text-sm font-medium">No transfers recorded in this period</p>
-            </div>
-            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-gray-50 text-xs text-gray-500 print:py-2">
+            Generated on {{ start_date_display }} • Automated by PDI Control Center
         </div>
     </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+        <div class="text-6xl mb-4 opacity-20">📊</div>
+        <p class="text-lg font-medium text-gray-600">No Sales Data Available</p>
+        <p class="text-sm text-gray-500 mt-2">No sales recorded for the selected period</p>
+    </div>
+    {% endif %}
+
+    <!-- Transfers Report -->
+    {% if transfer_data %}
+    <div class="bg-white rounded-lg shadow-sm print:shadow-none print:mt-8" id="transfersReport">
+
+        <!-- Report Header -->
+        <div class="border-b-2 border-gray-200 p-6 print:p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 bg-purple-400 rounded-full flex items-center justify-center print:w-8 print:h-8">
+                            <span class="text-xl">🚚</span>
+                        </div>
+                        <h1 class="text-2xl font-bold text-gray-900 print:text-xl">Transfers (Outward)</h1>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        <strong>Period:</strong> {{ start_date_display }} to {{ end_date_display }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Territory Reports -->
+        {% for head_name, head_transfers in transfer_data.items() %}
+        <div class="p-6 print:p-4 {% if not loop.last %}border-b border-gray-200{% endif %}">
+
+            <h2 class="text-lg font-bold text-gray-800 mb-4 print:text-base">From {{ head_name }}</h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 w-48">
+                                Destination Branch
+                            </th>
+                            {% for model_variant in head_transfers['model_variants'] %}
+                            <th class="border border-gray-300 px-4 py-3 text-center text-xs font-semibold text-gray-700">
+                                {{ model_variant }}
+                            </th>
+                            {% endfor %}
+                            <th class="border border-gray-300 px-4 py-3 text-center text-xs font-semibold text-gray-700 bg-purple-50">
+                                TOTAL
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dest in head_transfers['destinations'] %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="border border-gray-300 px-4 py-3 text-sm font-medium text-gray-900">
+                                {{ dest['name'] }}
+                            </td>
+                            {% for quantity in dest['quantities'] %}
+                            <td class="border border-gray-300 px-4 py-3 text-center">
+                                {% if quantity > 0 %}
+                                    <span class="inline-block px-3 py-1 text-sm font-semibold rounded bg-blue-100 text-blue-800">
+                                        {{ quantity }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400 text-sm">0</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td class="border border-gray-300 px-4 py-3 text-center bg-purple-50">
+                                <span class="inline-block px-3 py-1 text-sm font-bold rounded bg-purple-600 text-white">
+                                    {{ dest['total'] }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-gray-50 text-xs text-gray-500 print:py-2">
+            Generated on {{ start_date_display }} • Automated by PDI Control Center
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+        <div class="text-6xl mb-4 opacity-20">🚚</div>
+        <p class="text-lg font-medium text-gray-600">No Transfer Data Available</p>
+        <p class="text-sm text-gray-500 mt-2">No stock transfers recorded for the selected period</p>
+    </div>
+    {% endif %}
+
 </div>
+
+<script>
+function setQuickRange(range) {
+    const today = new Date();
+    let startDate, endDate = today;
+
+    switch(range) {
+        case 'today':
+            startDate = today;
+            break;
+        case 'week':
+            startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case 'month':
+            startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+    }
+
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    document.querySelector('input[name="start_date"]').value = formatDate(startDate);
+    document.querySelector('input[name="end_date"]').value = formatDate(endDate);
+}
+</script>
 
 <style>
 @media print {
-    nav, .no-print, button, a {
-        display: none !important;
-    }
     body {
         background: white;
     }
+
+    .print\\:hidden {
+        display: none !important;
+    }
+
+    .print\\:shadow-none {
+        box-shadow: none !important;
+    }
+
+    .print\\:p-4 {
+        padding: 1rem !important;
+    }
+
+    .print\\:py-2 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    .print\\:text-xl {
+        font-size: 1.25rem !important;
+    }
+
+    .print\\:text-base {
+        font-size: 1rem !important;
+    }
+
+    .print\\:w-8 {
+        width: 2rem !important;
+    }
+
+    .print\\:h-8 {
+        height: 2rem !important;
+    }
+
+    .print\\:mt-8 {
+        margin-top: 2rem !important;
+    }
+
+    /* Page break before transfers */
+    #transfersReport {
+        page-break-before: always;
+    }
+
+    table {
+        page-break-inside: avoid;
+    }
+
+    tr {
+        page-break-inside: avoid;
+    }
+
+    @page {
+        size: landscape;
+        margin: 1.5cm;
+    }
+
+    /* Remove hover effects in print */
+    tr:hover {
+        background-color: transparent !important;
+    }
+}
+
+/* Ensure badges print correctly */
+@media print {
+    span[class*="bg-"] {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
+
 {% endblock %}

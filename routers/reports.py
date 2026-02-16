@@ -9,7 +9,7 @@ import io
 import csv
 
 from database import get_db
-from services import branch_service
+from services import branch_service, report_service
 from models import VehicleMaster, SalesRecord, InventoryTransaction, Branch
 from routers.overview import get_active_context, get_context_data, check_auth
 
@@ -1141,13 +1141,13 @@ async def export_report(
 
 
 @router.get("/daily-sales-transfers", response_class=HTMLResponse)
-async def daily_sales_transfers_report(
+async def daily_sales_transfers(
         request: Request,
-        from_date: str = Query(None),
-        to_date: str = Query(None),
+        start_date: str = Query(None),
+        end_date: str = Query(None),
         db: Session = Depends(get_db)
 ):
-    """Daily Sales and Transfer Report"""
+    """Daily Sales and Transfers Report"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
@@ -1155,61 +1155,190 @@ async def daily_sales_transfers_report(
     context = get_context_data(request, db)
     active_branch_id = context["active_context"]
 
-    # Set default dates
-    if not from_date:
-        from_date = datetime.now().strftime("%Y-%m-%d")
-    if not to_date:
-        to_date = datetime.now().strftime("%Y-%m-%d")
+    # Default date range: last 7 days
+    if not start_date or not end_date:
+        end_d = datetime.now().date()
+        start_d = end_d - timedelta(days=7)
+    else:
+        start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    from_dt = datetime.strptime(from_date, "%Y-%m-%d")
-    to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+    print(f"\n{'=' * 60}")
+    print(f"[REPORT] Date Range: {start_d} to {end_d}")
+    print(f"[REPORT] Active Branch ID: {active_branch_id}")
 
-    # Get managed branches
-    managed_branches = branch_service.get_managed_branches(db, active_branch_id)
-    branch_ids = [branch.Branch_ID for branch in managed_branches]
+    # Get head branches
+    head_branches = branch_service.get_head_branches(db)
 
-    # PART 1: SALES SUMMARY
-    sales_data = db.query(
-        Branch.Branch_Name,
-        InventoryTransaction.Model,
-        InventoryTransaction.Variant,
-        func.sum(InventoryTransaction.Quantity).label("Total_Sold")
-    ).join(
-        Branch, InventoryTransaction.Current_Branch_ID == Branch.Branch_ID
-    ).filter(
-        InventoryTransaction.Transaction_Type == "SALE",
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date()
-    ).group_by(
-        Branch.Branch_Name,
-        InventoryTransaction.Model,
-        InventoryTransaction.Variant
-    ).all()
+    # Build head_map
+    head_map = {}
+    active_branch_obj = db.query(Branch).filter(Branch.Branch_ID == active_branch_id).first()
+    is_head_branch = any(hb.Branch_ID == active_branch_id for hb in head_branches)
 
-    # PART 2: TRANSFER SUMMARY (Outward)
-    transfer_data = db.query(
-        Branch.Branch_Name.label("From_Branch"),
-        func.count(distinct(InventoryTransaction.Load_Number)).label("Load_Count"),
-        func.sum(InventoryTransaction.Quantity).label("Total_Vehicles")
-    ).join(
-        Branch, InventoryTransaction.From_Branch_ID == Branch.Branch_ID
-    ).filter(
-        InventoryTransaction.Transaction_Type == "OUTWARD",
-        InventoryTransaction.From_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date()
-    ).group_by(Branch.Branch_Name).all()
+    if is_head_branch:
+        head_map[active_branch_obj.Branch_Name] = active_branch_id
+        print(f"[REPORT] User is at HEAD branch: {active_branch_obj.Branch_Name}")
+    else:
+        from models import BranchHierarchy
+        parent = db.query(BranchHierarchy).filter(
+            BranchHierarchy.Sub_Branch_ID == active_branch_id
+        ).first()
+
+        if parent:
+            parent_branch = db.query(Branch).filter(Branch.Branch_ID == parent.Parent_Branch_ID).first()
+            if parent_branch:
+                head_map[parent_branch.Branch_Name] = parent.Parent_Branch_ID
+                print(f"[REPORT] User at sub-branch, parent HEAD: {parent_branch.Branch_Name}")
+        else:
+            head_map[active_branch_obj.Branch_Name] = active_branch_id
+            print(f"[REPORT] No parent found, using active branch: {active_branch_obj.Branch_Name}")
+
+    print(f"[REPORT] Head Map: {head_map}")
+
+    # --- GET SALES DATA ---
+    all_sales = report_service.get_sales_report(db, start_d, end_d)
+    print(f"[REPORT] Total branches with sales: {len(all_sales)}")
+    print(f"[REPORT] Sales branches: {list(all_sales.keys())}")
+
+    # --- PROCESS SALES BY TERRITORY ---
+    sales_data = {}
+
+    for head_name, head_id in head_map.items():
+        managed_branches = branch_service.get_managed_branches(db, str(head_id))
+        branch_names = [b.Branch_Name for b in managed_branches]
+
+        print(f"[REPORT] {head_name} manages {len(branch_names)} branches: {branch_names}")
+
+        # Collect all model-variants across all branches
+        all_model_variants = set()
+        territory_branches = []
+
+        for branch_name in branch_names:
+            if branch_name in all_sales:
+                branch_data = all_sales[branch_name]
+                territory_branches.append({
+                    'name': branch_name,
+                    'data': branch_data
+                })
+                # Collect all model-variants (excluding TOTAL)
+                all_model_variants.update([k for k in branch_data.keys() if k != 'TOTAL'])
+                print(f"  ✓ {branch_name}: {sum([v for k, v in branch_data.items() if k != 'TOTAL'])} sales")
+
+        if territory_branches:
+            sales_data[head_name] = {
+                'branches': territory_branches,
+                'models': sorted(list(all_model_variants)) + ['TOTAL'],  # Add TOTAL at end
+                'has_total': True
+            }
+            print(
+                f"[REPORT] Territory {head_name}: {len(territory_branches)} branches, {len(all_model_variants)} model-variants")
+
+    # --- GET TRANSFER DATA ---
+    transfer_data = {}
+
+    for head_name, head_id in head_map.items():
+        transfer_summary = report_service.get_branch_transfer_summary(db, head_id, start_d, end_d)
+
+        print(f"[REPORT] Transfers from {head_name}: {len(transfer_summary['destinations'])} destinations")
+
+        if transfer_summary['destinations']:
+            destinations = []
+
+            for dest_name, dest_data in transfer_summary['destinations'].items():
+                quantities = []
+                for mv in transfer_summary['model_variants']:
+                    quantities.append(dest_data.get(mv, 0))
+
+                destinations.append({
+                    'name': dest_name,
+                    'quantities': quantities,
+                    'total': dest_data.get('TOTAL', 0)
+                })
+                print(f"  → {dest_name}: {dest_data.get('TOTAL', 0)} units")
+
+            transfer_data[head_name] = {
+                'destinations': destinations,
+                'model_variants': transfer_summary['model_variants']
+            }
+
+    print(f"\n[REPORT] FINAL RESULTS:")
+    print(f"  - Sales Territories: {list(sales_data.keys())}")
+    print(f"  - Transfer Sources: {list(transfer_data.keys())}")
+    print(f"{'=' * 60}\n")
 
     return templates.TemplateResponse(
         "reports_daily_sales_transfers.html",
         {
             "request": request,
             **context,
-            "from_date": from_date,
-            "to_date": to_date,
+            "start_date": start_d.strftime("%Y-%m-%d"),
+            "end_date": end_d.strftime("%Y-%m-%d"),
+            "start_date_display": start_d.strftime("%d-%b-%Y"),
+            "end_date_display": end_d.strftime("%d-%b-%Y"),
             "sales_data": sales_data,
             "transfer_data": transfer_data,
             "current_page": "reports"
         }
     )
+
+
+@router.get("/debug-sales-data")
+async def debug_sales_data(
+        request: Request,
+        start_date: str = Query(None),
+        end_date: str = Query(None),
+        db: Session = Depends(get_db)
+):
+    """Debug endpoint to check raw sales data"""
+
+    if not check_auth(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    if not start_date or not end_date:
+        end_d = datetime.now().date()
+        start_d = end_d - timedelta(days=30)
+    else:
+        start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Get sales data using service
+    sales_data = report_service.get_sales_report(db, start_d, end_d)
+
+    # Get raw transaction counts
+    from sqlalchemy import func
+
+    txn_counts = db.query(
+        InventoryTransaction.Transaction_Type,
+        func.count(InventoryTransaction.id).label('count'),
+        func.sum(InventoryTransaction.Quantity).label('total_qty')
+    ).filter(
+        InventoryTransaction.Date >= start_d,
+        InventoryTransaction.Date <= end_d
+    ).group_by(
+        InventoryTransaction.Transaction_Type
+    ).all()
+
+    # Get date range of available data
+    date_range_check = db.query(
+        func.min(InventoryTransaction.Date).label('min_date'),
+        func.max(InventoryTransaction.Date).label('max_date'),
+        func.count(InventoryTransaction.id).label('total_count')
+    ).first()
+
+    return JSONResponse({
+        "requested_date_range": f"{start_d} to {end_d}",
+        "database_date_range": {
+            "min_date": str(date_range_check.min_date) if date_range_check.min_date else None,
+            "max_date": str(date_range_check.max_date) if date_range_check.max_date else None,
+            "total_transactions": date_range_check.total_count
+        },
+        "sales_by_branch": sales_data,
+        "transaction_counts": {
+            txn_type: {
+                "count": count,
+                "total_quantity": int(qty) if qty else 0
+            }
+            for txn_type, count, qty in txn_counts
+        },
+        "total_branches_with_sales": len(sales_data)
+    })
