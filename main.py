@@ -2,10 +2,11 @@
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse,FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 import os
 from pathlib import Path
+
 
 from routers import auth, overview, task_manager, inventory, logistics, reports, mechanic
 
@@ -23,9 +24,20 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 # Create static directory if it doesn't exist
 Path("static/css").mkdir(parents=True, exist_ok=True)
 Path("static/js").mkdir(parents=True, exist_ok=True)
-
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve manifest.json at root level (optional but recommended)
+@app.get("/manifest.json")
+async def get_manifest():
+    return FileResponse("static/manifest.json")
+
+# Serve service worker at root level
+@app.get("/sw.js")
+async def get_service_worker():
+    return FileResponse("static/sw.js")
+
+
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="templates")
