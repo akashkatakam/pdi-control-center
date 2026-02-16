@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
+import models
 from database import get_db
 from models import VehicleMaster, Branch, InventoryTransaction
 from services import branch_service, email_service
@@ -456,3 +457,165 @@ async def create_manual_sale(
             "success": False,
             "message": f"Error logging manual sale: {str(e)}"
         }, status_code=500)
+
+
+@router.post("/sync-emails")
+async def sync_emails(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Manually trigger email sync to fetch new loads from S08 attachments"""
+
+    if not check_auth(request):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
+
+    try:
+        context = get_context_data(request, db)
+        active_branch_id = context["active_context"]
+
+        # Email configurations for different branches
+        email_configs = {
+            "1": {  # Khammam
+                'name': 'Khammam',
+                'host': 'imap.gmail.com',
+                'user': 'katkammotors@gmail.com',
+                'password': 'prkv wpwl wohd fmzp',
+                'sender_filter': 'katkamhonda@rediffmail.com'
+            },
+            "3": {  # Kothagudem
+                'name': 'Kothagudem',
+                'host': 'imap.gmail.com',
+                'user': 'saikatakamhonda@gmail.com',
+                'password': 'aqff aows ptuv wdob',
+                'sender_filter': 'sap.admin@honda2wheelersindia.com'
+            }
+        }
+
+        # Get the email config for the active branch
+        email_config = email_configs.get(active_branch_id)
+
+        if not email_config:
+            return JSONResponse({
+                "success": False,
+                "error": f"Email sync is not configured for this branch (ID: {active_branch_id}). Only available for Khammam and Kothagudem branches.",
+                "new_loads": 0
+            })
+
+        # Optional: Load color mappings from database if needed
+        color_map = {}
+
+        # Fetch and process emails
+        vehicle_data_list, logs = email_service.fetch_and_process_emails(
+            db=db,
+            branch_id=str(active_branch_id),
+            email_config=email_config,
+            color_map=color_map
+        )
+
+        # Create vehicles from parsed data
+        if vehicle_data_list:
+            loads_created = email_service.create_vehicles_from_email_data(
+                db=db,
+                vehicle_data_list=vehicle_data_list,
+                branch_id=str(active_branch_id)
+            )
+
+            total_vehicles = len(vehicle_data_list)
+            total_loads = len(loads_created)
+
+            return JSONResponse({
+                "success": True,
+                "message": f"Successfully synced {total_loads} load(s) with {total_vehicles} vehicle(s)",
+                "new_loads": total_loads,  # This is what your frontend expects
+                "vehicles_count": total_vehicles,
+                "branch_name": email_config['name'],
+                "logs": logs[-10:]
+            })
+        else:
+            return JSONResponse({
+                "success": True,
+                "message": f"No new emails found for {email_config['name']}",
+                "new_loads": 0,  # This is what your frontend expects
+                "vehicles_count": 0,
+                "branch_name": email_config['name'],
+                "logs": logs[-10:] if logs else ["No new emails found"]
+            })
+
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"[EMAIL SYNC ERROR] {error_detail}")
+
+        return JSONResponse({
+            "success": False,
+            "error": f"Error syncing emails: {str(e)}",
+            "new_loads": 0
+        })
+
+
+@router.post("/receive-load")
+async def receive_load_form(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Process receiving a load from the modal form"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    try:
+        form_data = await request.form()
+        load_reference = form_data.get("load_reference")
+
+        if not load_reference:
+            return JSONResponse({"success": False, "error": "Load reference is required"})
+
+        context = get_context_data(request, db)
+        receiving_branch_id = context["active_context"]
+
+        # Get all in-transit vehicles for this load
+        vehicles = db.query(models.VehicleMaster).filter(
+            models.VehicleMaster.load_reference_number == load_reference,
+            models.VehicleMaster.status == "In Transit"
+        ).all()
+
+        if not vehicles:
+            return JSONResponse({
+                "success": False,
+                "error": "No vehicles found for this load"
+            })
+
+        received_count = 0
+
+        for vehicle in vehicles:
+            # Update vehicle status and branch
+            vehicle.status = "In Stock"
+            vehicle.current_branch_id = receiving_branch_id
+
+            # Create inward transaction
+            inward_txn = InventoryTransaction(
+                Date=datetime.now().date(),
+                Model=vehicle.model,
+                Variant=vehicle.variant,
+                Color=vehicle.color,
+                Transaction_Type="INWARD",
+                From_Branch_ID=None,
+                Source_External='HMSI (Transit Received)',
+                To_Branch_ID=None,
+                Current_Branch_ID=receiving_branch_id,
+                Quantity=1,
+                Load_Number=load_reference,
+                Remarks=f"Received from load {load_reference}"
+            )
+            db.add(inward_txn)
+            received_count += 1
+
+        db.commit()
+
+        # Redirect back to receive page with success message
+        return RedirectResponse(url="/logistics/receive?success=true", status_code=303)
+
+    except Exception as e:
+        db.rollback()
+        print(f"[RECEIVE LOAD ERROR] {str(e)}")
+        return RedirectResponse(url="/logistics/receive?error=true", status_code=303)
