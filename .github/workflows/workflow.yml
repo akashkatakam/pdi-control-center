@@ -38,7 +38,7 @@ jobs:
             git pull origin main
             
             echo "🐍 Activating virtual environment..."
-            source venv/bin/activate
+            source .venv/bin/activate
             
             echo "📦 Installing dependencies..."
             pip install -r requirements.txt
