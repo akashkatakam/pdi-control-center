@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Login - PDI Control Center</title>
 
     <!-- PWA Meta Tags -->
@@ -15,12 +15,74 @@
 
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/icon-512x512.png">
     <link rel="shortcut icon" href="/static/icons/icon-192x192.png">
+
+    <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Smooth transitions */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            overscroll-behavior-y: contain;
+        }
+
+        /* PWA Install Prompt */
+        .install-prompt {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
 </head>
 <body class="bg-gradient-to-br from-blue-500 to-purple-600 min-h-screen flex items-center justify-center">
+    <!-- PWA Install Prompt -->
+    <div id="installPrompt" class="hidden fixed bottom-4 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-2xl z-50 install-prompt">
+        <div class="p-4">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                        <span class="text-2xl">🚀</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg">Install App</h3>
+                        <p class="text-sm text-blue-100">Quick access from your home screen</p>
+                    </div>
+                </div>
+                <button onclick="closeInstallPrompt()" class="text-white hover:bg-white/20 rounded-lg p-1 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="installPWA()" class="flex-1 bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-blue-50 transition">
+                    Install
+                </button>
+                <button onclick="closeInstallPrompt()" class="px-4 py-2 text-white hover:bg-white/20 rounded-lg transition">
+                    Not now
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-md w-full px-4">
         <!-- Logo/Header -->
         <div class="text-center mb-8">
@@ -83,19 +145,91 @@
         </div>
     </div>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration and PWA Install Handler -->
     <script>
+        let deferredPrompt;
+        let refreshing = false;
+
+        // Register Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('✅ Service Worker registered');
+                    .then((registration) => {
+                        console.log('✅ Service Worker registered successfully');
+
+                        // Check for updates
+                        registration.update();
+
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('🎉 New version available!');
+                                }
+                            });
+                        });
                     })
-                    .catch(error => {
+                    .catch((error) => {
                         console.error('❌ Service Worker registration failed:', error);
                     });
             });
+
+            // Reload when new service worker takes control
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
         }
+
+        // Capture the install prompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('💡 Install prompt available');
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show custom install prompt after 2 seconds
+            setTimeout(() => {
+                document.getElementById('installPrompt').classList.remove('hidden');
+            }, 2000);
+        });
+
+        // Install PWA when user clicks button
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('✅ User accepted the install prompt');
+                    } else {
+                        console.log('❌ User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                    closeInstallPrompt();
+                });
+            }
+        }
+
+        // Close install prompt
+        function closeInstallPrompt() {
+            document.getElementById('installPrompt').classList.add('hidden');
+        }
+
+        // Log when app is installed
+        window.addEventListener('appinstalled', () => {
+            console.log('🎉 PWA was installed');
+            closeInstallPrompt();
+        });
+
+        // Handle offline/online events
+        window.addEventListener('online', () => {
+            console.log('🌐 Back online');
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📡 Offline mode');
+        });
     </script>
 </body>
 </html>
