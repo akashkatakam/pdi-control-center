@@ -59,7 +59,6 @@ def record_to_dict(record: models.SalesRecord) -> Dict[str, Any]:
         'pdi_assigned_to': record.pdi_assigned_to,
         'pdi_completion_date': record.pdi_completion_date,
         'Branch_ID': record.Branch_ID,
-        # Add any other fields you need
     }
 
 
@@ -79,15 +78,38 @@ def assign_pdi_mechanic(db: Session, sale_id: int, mechanic_name: str):
 
 
 def complete_pdi(db: Session, sale_id: int, chassis_no: str, engine_no: str = None, dc_number: str = None):
-    """Complete PDI and link vehicle"""
+    """Complete PDI and link vehicle with validation"""
     try:
         record = db.query(models.SalesRecord).filter(models.SalesRecord.id == sale_id).first()
         vehicle = db.query(models.VehicleMaster).filter(models.VehicleMaster.chassis_no == chassis_no).first()
 
         if not record:
             return False, "Sales Record not found."
+
         if not vehicle:
-            return False, f"Chassis '{chassis_no}' not found."
+            return False, f"Chassis '{chassis_no}' not found in inventory."
+
+        # ===== NEW VALIDATION: Check if vehicle specs match customer order =====
+        mismatches = []
+
+        if vehicle.model != record.Model:
+            mismatches.append(f"Model mismatch: Vehicle is '{vehicle.model}' but customer ordered '{record.Model}'")
+
+        if vehicle.variant != record.Variant:
+            mismatches.append(
+                f"Variant mismatch: Vehicle is '{vehicle.variant}' but customer ordered '{record.Variant}'")
+
+        if vehicle.color != record.Paint_Color:
+            mismatches.append(
+                f"Color mismatch: Vehicle is '{vehicle.color}' but customer ordered '{record.Paint_Color}'")
+
+        if mismatches:
+            error_message = "⚠️ VEHICLE MISMATCH DETECTED!\n\n" + "\n".join(mismatches)
+            error_message += f"\n\nScanned Vehicle: {vehicle.model} {vehicle.variant} ({vehicle.color})"
+            error_message += f"\nCustomer Order: {record.Model} {record.Variant} ({record.Paint_Color})"
+            error_message += "\n\nPlease scan the correct vehicle or contact supervisor."
+            return False, error_message
+        # ===== END VALIDATION =====
 
         if vehicle.status != 'In Stock':
             if vehicle.sale_id == sale_id:
@@ -95,7 +117,7 @@ def complete_pdi(db: Session, sale_id: int, chassis_no: str, engine_no: str = No
                 record.pdi_completion_date = datetime.now(IST_TIMEZONE)
                 db.commit()
                 return True, "Already allotted. PDI marked complete."
-            return False, f"Vehicle is '{vehicle.status}' (Linked to ID: {vehicle.sale_id})."
+            return False, f"Vehicle is '{vehicle.status}' and already linked to Sale ID: {vehicle.sale_id}."
 
         # Link and Update
         vehicle.status = 'Allotted'
@@ -110,7 +132,8 @@ def complete_pdi(db: Session, sale_id: int, chassis_no: str, engine_no: str = No
             record.dc_number = dc_number
 
         db.commit()
-        return True, "Success: PDI Complete and Vehicle Linked!"
+        return True, "✓ Success: PDI Complete and Vehicle Linked!"
+
     except Exception as e:
         db.rollback()
         return False, f"Database Error: {e}"
