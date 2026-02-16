@@ -8,6 +8,7 @@
   "theme_color": "#3b82f6",
   "orientation": "any",
   "scope": "/",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/static/icons/icon-48x48.png",
@@ -44,6 +45,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Overview",
+      "short_name": "Overview",
+      "description": "View dashboard overview",
+      "url": "/overview",
+      "icons": [{ "src": "/static/icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Logistics",
+      "short_name": "Logistics",
+      "description": "Manage logistics",
+      "url": "/logistics/receive",
+      "icons": [{ "src": "/static/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ]
 }

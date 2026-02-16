@@ -1,68 +1,111 @@
-const CACHE_NAME = 'pdi-control-center-v1';
-const urlsToCache = [
+const CACHE_VERSION = 'pdi-v1.0.6';
+const CACHE_NAME = `pdi-cache-${CACHE_VERSION}`;
+
+// Files to cache immediately
+const PRECACHE_URLS = [
   '/',
-  '/static/css/custom.css',
-  '/static/manifest.json'
+  '/overview',
+  '/static/icons/icon-192x192.png',
+  '/static/icons/icon-512x512.png',
+  '/manifest.json'
 ];
 
-// Install event - cache resources
+// Install event - precache important files
 self.addEventListener('install', (event) => {
+  console.log('[Service Worker] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        console.log('[Service Worker] Precaching app shell');
+        return cache.addAll(PRECACHE_URLS);
       })
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('[Service Worker] Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network first, fall back to cache
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Skip chrome extensions and non-http(s) requests
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
+        // Clone the response
+        const responseToCache = response.clone();
+
+        // Cache successful responses
+        if (response.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
 
-        // Clone the request
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest).then((response) => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+        return response;
+      })
+      .catch(() => {
+        // Network failed, try cache
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
 
-          // Clone the response
-          const responseToCache = response.clone();
-
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
+          // If not in cache and offline, return offline page
+          return caches.match('/offline').then((offlineResponse) => {
+            return offlineResponse || new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable'
             });
-
-          return response;
+          });
         });
       })
   );
 });
+
+// Handle messages from clients
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+
+  if (event.data === 'GET_VERSION') {
+    event.ports[0].postMessage(CACHE_VERSION);
+  }
+});
+
+// Background sync (for future use)
+self.addEventListener('sync', (event) => {
+  console.log('[Service Worker] Background sync:', event.tag);
+  if (event.tag === 'sync-data') {
+    event.waitUntil(syncData());
+  }
+});
+
+async function syncData() {
+  // Implement your background sync logic here
+  console.log('[Service Worker] Syncing data...');
+}
