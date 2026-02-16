@@ -1,5 +1,7 @@
 # services/stock_service.py
 from typing import List, Dict, Any
+
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 import models
 from models import TransactionType
@@ -55,13 +57,19 @@ def get_vehicle_master_data(db: Session) -> dict:
         master_data[v.Model][v.Variant] = colors
     return master_data
 
-
 def search_vehicles(db: Session, chassis: str = None, model: str = None, variant: str = None,
                     color: str = None) -> pd.DataFrame:
     """
     Locates vehicles by Chassis OR by Model/Variant/Color attributes.
     Returns Branch Location and Status.
+    Head branches (1, 3) are prioritized and shown first.
     """
+    # Define priority: 0 = head branches (1, 3), 1 = other branches
+    branch_priority = case(
+        (models.VehicleMaster.current_branch_id.in_(['1', '3']), 0),
+        else_=1
+    )
+
     query = db.query(
         models.VehicleMaster.chassis_no,
         models.VehicleMaster.model,
@@ -70,7 +78,8 @@ def search_vehicles(db: Session, chassis: str = None, model: str = None, variant
         models.VehicleMaster.status,
         models.VehicleMaster.dc_number,
         models.VehicleMaster.current_branch_id,
-        models.Branch.Branch_Name.label("Current_Location")
+        models.Branch.Branch_Name.label("Current_Location"),
+        branch_priority.label("branch_priority")  # Add priority column
     ).join(models.Branch, models.VehicleMaster.current_branch_id == models.Branch.Branch_ID)
 
     if chassis:
@@ -86,9 +95,19 @@ def search_vehicles(db: Session, chassis: str = None, model: str = None, variant
 
     # Limit results to prevent massive dumps if filters are loose
     query = query.filter(models.VehicleMaster.status == 'In Stock')
+
+    # Order by priority (head branches first), then by branch name
+    query = query.order_by(branch_priority, models.Branch.Branch_Name)
+
     query = query.limit(500)
 
-    return pd.read_sql(query.statement, db.get_bind())
+    df = pd.read_sql(query.statement, db.get_bind())
+
+    # Drop the priority column from final output (it was just for sorting)
+    if not df.empty and 'branch_priority' in df.columns:
+        df = df.drop('branch_priority', axis=1)
+
+    return df
 
 
 def get_all_product_mappings(db: Session) -> pd.DataFrame:
