@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}Complete PDI - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Success/Error Messages -->
+    {% if success %}
+    <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        {{ success }}
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <a href="/mechanic/dashboard" class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium">
+        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <!-- Sale Details Card -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <h1 class="text-2xl font-bold text-white">Complete PDI - DC #{{ sales_record.DC_Number or sales_record.id }}</h1>
+        </div>
+
+        <div class="p-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">Customer Name</p>
+                    <p class="font-bold text-gray-900">{{ sales_record.Customer_Name }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">Model</p>
+                    <p class="font-bold text-gray-900">{{ sales_record.Model }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">Variant</p>
+                    <p class="font-bold text-gray-900">{{ sales_record.Variant }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">Color</p>
+                    <p class="font-bold text-gray-900">{{ sales_record.Paint_Color }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">Sale Date</p>
+                    <p class="font-bold text-gray-900">
+                        {{ sales_record.Timestamp.strftime('%d-%b-%Y') if sales_record.Timestamp else 'N/A' }}
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 text-xs uppercase mb-1">DC Number</p>
+                    <p class="font-bold text-blue-600">{{ sales_record.DC_Number or 'Not Assigned' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simplified PDI Checklist -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Quick PDI Checklist (5 Essential Items)
+            </h2>
+        </div>
+
+        <div class="p-6">
+            <div class="space-y-3">
+                <label class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition cursor-pointer border-2 border-gray-200 hover:border-blue-400">
+                    <input type="checkbox" id="check_1" class="w-6 h-6 text-blue-600 rounded mt-1" required>
+                    <div class="ml-3">
+                        <p class="text-base font-bold text-gray-900">✓ Engine & Fluids <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-gray-600">Oil, coolant, brake fluid levels checked</p>
+                    </div>
+                </label>
+
+                <label class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition cursor-pointer border-2 border-gray-200 hover:border-blue-400">
+                    <input type="checkbox" id="check_2" class="w-6 h-6 text-blue-600 rounded mt-1" required>
+                    <div class="ml-3">
+                        <p class="text-base font-bold text-gray-900">✓ All Lights & Horn <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-gray-600">Headlight, tail light, indicators, horn working</p>
+                    </div>
+                </label>
+
+                <label class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition cursor-pointer border-2 border-gray-200 hover:border-blue-400">
+                    <input type="checkbox" id="check_3" class="w-6 h-6 text-blue-600 rounded mt-1" required>
+                    <div class="ml-3">
+                        <p class="text-base font-bold text-gray-900">✓ Tires & Brakes <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-gray-600">Tire pressure, brakes tested and working</p>
+                    </div>
+                </label>
+
+                <label class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition cursor-pointer border-2 border-gray-200 hover:border-blue-400">
+                    <input type="checkbox" id="check_4" class="w-6 h-6 text-blue-600 rounded mt-1" required>
+                    <div class="ml-3">
+                        <p class="text-base font-bold text-gray-900">✓ Body Inspection <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-gray-600">No scratches, dents, paint defects</p>
+                    </div>
+                </label>
+
+                <label class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition cursor-pointer border-2 border-gray-200 hover:border-blue-400">
+                    <input type="checkbox" id="check_5" class="w-6 h-6 text-blue-600 rounded mt-1" required>
+                    <div class="ml-3">
+                        <p class="text-base font-bold text-gray-900">✓ Test Ride Completed <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-gray-600">Vehicle test ride done, performance OK</p>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Progress -->
+            <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-blue-900">Checklist Progress</span>
+                    <span id="progress-text" class="text-sm font-bold text-blue-900">0/5 completed</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-3">
+                    <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Linking Form -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Link Vehicle & Complete PDI
+            </h2>
+        </div>
+
+        <form method="POST" action="/mechanic/pdi/complete" class="p-6 space-y-6" id="pdi-form">
+            <input type="hidden" name="sale_id" value="{{ sales_record.id }}">
+
+            <!-- DC Number (Auto-filled) -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">DC Number</label>
+                <input
+                    type="text"
+                    name="dc_number"
+                    value="{{ sales_record.DC_Number or '' }}"
+                    readonly
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-semibold"
+                >
+            </div>
+
+            <!-- Chassis Number with Scanner -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    Chassis Number <span class="text-red-500">*</span>
+                </label>
+
+                <div class="space-y-3">
+                    <!-- Scanner Area (Shown by default) -->
+                    <div id="scanner-container">
+                        <div class="bg-gray-900 rounded-lg p-4">
+                            <div class="text-center text-white mb-3">
+                                <p class="font-semibold">📷 Scan Chassis Barcode/QR Code</p>
+                                <p class="text-xs text-gray-400">Position the code in the frame - it will auto-detect</p>
+                            </div>
+                            <div id="reader" class="rounded-lg overflow-hidden" style="border: 2px solid #4F46E5;"></div>
+                            <div class="mt-3 flex gap-2">
+                                <button
+                                    type="button"
+                                    onclick="stopScan()"
+                                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                                >
+                                    ❌ Close Scanner
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="toggleManualEntry()"
+                                    class="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
+                                >
+                                    ⌨️ Manual Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Input (Hidden by default) -->
+                    <div id="manual-entry" class="hidden">
+                        <input
+                            type="text"
+                            id="chassis_no"
+                            placeholder="Enter chassis number manually"
+                            value="{{ sales_record.chassis_no if sales_record.chassis_no else '' }}"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono text-lg"
+                        >
+                        <button
+                            type="button"
+                            onclick="toggleManualEntry()"
+                            class="mt-2 w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold inline-flex items-center justify-center"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Back to Scanner
+                        </button>
+                    </div>
+
+                    <!-- Hidden field to store scanned value for form submission -->
+                    <input type="hidden" name="chassis_no" id="chassis_no_hidden" value="{{ sales_record.chassis_no if sales_record.chassis_no else '' }}">
+
+                    {% if available_vehicles %}
+                    <p class="text-xs text-green-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        {{ available_vehicles|length }} matching vehicle(s) available in stock
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Engine Number (Optional Override) -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    Engine Number <span class="text-gray-400">(Optional - auto-filled from master)</span>
+                </label>
+                <input
+                    type="text"
+                    name="engine_no"
+                    placeholder="Leave blank to use master record"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase font-mono"
+                >
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+                <p class="text-sm text-yellow-800 font-semibold">⚠️ Complete all 5 checklist items and scan chassis number before submitting</p>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex gap-4">
+                <button
+                    type="submit"
+                    id="submit-btn"
+                    disabled
+                    class="flex-1 px-6 py-4 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed text-lg"
+                >
+                    ✓ Complete PDI & Link Vehicle
+                </button>
+                <a
+                    href="/mechanic/dashboard"
+                    class="px-6 py-4 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition text-center"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<!-- HTML5-QRCode Library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+let html5QrCode = null;
+
+// Checklist progress tracking
+const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+const progressBar = document.getElementById('progress-bar');
+const progressText = document.getElementById('progress-text');
+const submitBtn = document.getElementById('submit-btn');
+
+function updateProgress() {
+    const total = checkboxes.length;
+    const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const percentage = (checked / total) * 100;
+
+    progressBar.style.width = percentage + '%';
+    progressText.textContent = `${checked}/${total} completed`;
+
+    // Check if chassis number is filled
+    const chassisValue = document.getElementById('chassis_no_hidden').value;
+
+    if (checked === total && chassisValue.trim()) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+        submitBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-lg');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'shadow-lg');
+    }
+}
+
+checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateProgress);
+});
+
+// Toggle between scanner and manual entry
+function toggleManualEntry() {
+    const scannerContainer = document.getElementById('scanner-container');
+    const manualEntry = document.getElementById('manual-entry');
+
+    if (scannerContainer.classList.contains('hidden')) {
+        // Show scanner, hide manual
+        scannerContainer.classList.remove('hidden');
+        manualEntry.classList.add('hidden');
+        startScan();
+    } else {
+        // Hide scanner, show manual
+        stopScan();
+        scannerContainer.classList.add('hidden');
+        manualEntry.classList.remove('hidden');
+        document.getElementById('chassis_no').focus();
+    }
+}
+
+// Auto-start scanner on page load
+function startScan() {
+    if (html5QrCode) return; // Already running
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.777778
+    };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        console.error("Failed to start scanner:", err);
+        alert("Could not access camera. Switching to manual entry.");
+        toggleManualEntry();
+    });
+}
+
+function stopScan() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+            html5QrCode = null;
+        }).catch(err => {
+            console.error("Error stopping scanner:", err);
+        });
+    }
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    const chassisNumber = decodedText.toUpperCase().trim();
+
+    // Fill both visible and hidden fields
+    document.getElementById('chassis_no_hidden').value = chassisNumber;
+    if (document.getElementById('chassis_no')) {
+        document.getElementById('chassis_no').value = chassisNumber;
+    }
+
+    // Show success feedback
+    const reader = document.getElementById('reader');
+    reader.style.border = '3px solid #10B981';
+
+    // Show success message overlay
+    const successMsg = document.createElement('div');
+    successMsg.className = 'absolute top-0 left-0 right-0 bg-green-500 text-white text-center py-2 font-bold rounded-t-lg';
+    successMsg.innerHTML = '✓ Scanned: ' + chassisNumber;
+    reader.parentElement.style.position = 'relative';
+    reader.parentElement.insertBefore(successMsg, reader);
+
+    // Stop scanner after successful scan
+    setTimeout(() => {
+        stopScan();
+        document.getElementById('scanner-container').classList.add('hidden');
+        document.getElementById('manual-entry').classList.remove('hidden');
+        if (successMsg.parentElement) {
+            successMsg.remove();
+        }
+    }, 1500);
+
+    // Update progress
+    updateProgress();
+}
+
+function onScanError(errorMessage) {
+    // Silently ignore scan errors (they happen frequently)
+}
+
+// Sync manual input with hidden field
+document.addEventListener('DOMContentLoaded', function() {
+    const manualInput = document.getElementById('chassis_no');
+    if (manualInput) {
+        manualInput.addEventListener('input', function() {
+            document.getElementById('chassis_no_hidden').value = this.value.toUpperCase();
+            updateProgress();
+        });
+    }
+
+    // Auto-start scanner on page load
+    setTimeout(() => {
+        startScan();
+    }, 500);
+
+    updateProgress();
+});
+</script>
+
+{% endblock %}

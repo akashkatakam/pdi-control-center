@@ -1,12 +1,13 @@
-# routers/mechanic.py - Mechanic PDI Interface
-from fastapi import APIRouter, Request, Depends, Form
+# routers/mechanic.py
+from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import SalesRecord, VehicleMaster, User, Branch
+from services import sales_service
+from models import SalesRecord, VehicleMaster, Branch
 from routers.overview import check_auth, get_context_data
 
 router = APIRouter(prefix="/mechanic", tags=["mechanic"])
@@ -18,254 +19,171 @@ async def mechanic_dashboard(
         request: Request,
         db: Session = Depends(get_db)
 ):
-    """Mechanic Dashboard - Show assigned PDI tasks"""
+    """Mechanic Dashboard - View assigned PDI work"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
 
-    username = request.session.get("username")
-    user_role = request.session.get("user_role")
-    branch_id = request.session.get("branch_id")
+    context = get_context_data(request, db)
 
-    # Only mechanics can access
-    if user_role != "Mechanic":
-        return RedirectResponse(url="/overview")
+    # Get mechanic username from session
+    mechanic_username = request.session.get("username")
+    branch_id = str(context["active_context"])
 
-    # Get mechanic's assigned tasks
-    assigned_tasks = db.query(
-        SalesRecord, VehicleMaster, Branch
-    ).join(
-        VehicleMaster, SalesRecord.chassis_no == VehicleMaster.chassis_no, isouter=True
-    ).join(
-        Branch, SalesRecord.Branch_ID == Branch.Branch_ID
-    ).filter(
-        SalesRecord.pdi_assigned_to == username,
-        SalesRecord.fulfillment_status == "PDI In Progress"
-    ).all()
+    # Get branch name
+    branch = db.query(Branch).filter(Branch.Branch_ID == int(branch_id)).first()
+    branch_name = branch.Branch_Name if branch else "Unknown"
 
-    # Get completed tasks (last 7 days)
-    seven_days_ago = datetime.now() - timedelta(days=7)
-    completed_tasks = db.query(
-        SalesRecord, VehicleMaster, Branch
-    ).join(
-        VehicleMaster, SalesRecord.chassis_no == VehicleMaster.chassis_no, isouter=True
-    ).join(
-        Branch, SalesRecord.Branch_ID == Branch.Branch_ID
-    ).filter(
-        SalesRecord.pdi_assigned_to == username,
-        SalesRecord.fulfillment_status == "PDI Complete",
-        SalesRecord.pdi_completion_date >= seven_days_ago
-    ).order_by(SalesRecord.pdi_completion_date.desc()).all()
+    # Get pending sales records assigned to this mechanic (now returns list of dicts)
+    pending_records = sales_service.get_sales_records_for_mechanic(db, mechanic_username, branch_id)
 
-    # Format tasks
-    pending_list = []
-    for sale, vehicle, branch in assigned_tasks:
-        pending_list.append({
-            "id": sale.id,
-            "dc_number": sale.DC_Number,
-            "customer": sale.Customer_Name,
-            "chassis": sale.chassis_no or "Not Scanned",
-            "engine": sale.engine_no or "Not Scanned",
-            "model": sale.Model,
-            "variant": sale.Variant,
-            "color": sale.Paint_Color,
-            "branch": branch.Branch_Name,
-            "vehicle_available": vehicle is not None
+    # Transform to template format
+    pending_tasks = []
+    for record in pending_records:
+        pending_tasks.append({
+            'id': record['id'],
+            'dc_number': record.get('dc_number') or 'N/A',
+            'chassis': record.get('chassis_no') or 'Not Scanned',
+            'engine': record.get('engine_no') or 'N/A',
+            'customer': record.get('customer_name') or 'N/A',
+            'model': record.get('model') or 'N/A',
+            'variant': record.get('variant') or 'N/A',
+            'color': record.get('color') or 'N/A',
         })
 
-    completed_list = []
-    for sale, vehicle, branch in completed_tasks:
-        completed_list.append({
-            "dc_number": sale.DC_Number,
-            "chassis": sale.chassis_no,
-            "engine": sale.engine_no,
-            "model": sale.Model,
-            "completion_date": sale.pdi_completion_date.strftime(
-                "%d %b %Y %I:%M %p") if sale.pdi_completion_date else "N/A"
-        })
+    # Get completed records (last 48 hours, now returns list of dicts)
+    completed_records = sales_service.get_completed_sales_last_48h(db, branch_id)
 
-    # Get branch info
-    branch = db.query(Branch).filter(Branch.Branch_ID == branch_id).first()
+    # Filter for this mechanic's completed work
+    completed_tasks = []
+    for record in completed_records:
+        if record.get('pdi_assigned_to') == mechanic_username and record.get('pdi_completion_date'):
+            completion_date = record['pdi_completion_date']
+            if isinstance(completion_date, datetime):
+                formatted_date = completion_date.strftime('%d-%b-%Y %I:%M %p')
+            else:
+                formatted_date = str(completion_date)
+
+            completed_tasks.append({
+                'dc_number': record.get('dc_number') or 'N/A',
+                'chassis': record.get('chassis_no') or 'N/A',
+                'engine': record.get('engine_no') or 'N/A',
+                'model': record.get('model') or 'N/A',
+                'completion_date': formatted_date
+            })
+
+    # Stats
+    total_pending = len(pending_tasks)
+    total_completed = len(completed_tasks)
 
     return templates.TemplateResponse(
         "mechanic_dashboard.html",
         {
             "request": request,
-            "username": username,
-            "user_role": user_role,
-            "branch_name": branch.Branch_Name if branch else "N/A",
-            "pending_tasks": pending_list,
-            "completed_tasks": completed_list,
-            "total_pending": len(pending_list),
-            "total_completed": len(completed_list),
+            **context,
+            "pending_tasks": pending_tasks,
+            "completed_tasks": completed_tasks,
+            "total_pending": total_pending,
+            "total_completed": total_completed,
+            "branch_name": branch_name,
             "current_page": "mechanic"
         }
     )
 
 
 @router.get("/pdi/{sale_id}", response_class=HTMLResponse)
-async def pdi_checklist(
+async def pdi_work_form(
         request: Request,
         sale_id: int,
         db: Session = Depends(get_db)
 ):
-    """PDI Checklist page for a specific sale"""
+    """PDI Completion Form"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
 
-    username = request.session.get("username")
-    user_role = request.session.get("user_role")
+    context = get_context_data(request, db)
 
-    # Only mechanics can access
-    if user_role != "Mechanic":
-        return RedirectResponse(url="/overview")
+    # Get sales record
+    sales_record: SalesRecord = db.query(SalesRecord).filter(SalesRecord.id == sale_id).first()
 
-    # Get sale record
-    sale = db.query(SalesRecord).filter(SalesRecord.id == sale_id).first()
+    if not sales_record:
+        return RedirectResponse(url="/mechanic/dashboard?error=Record not found")
 
-    if not sale:
-        return RedirectResponse(url="/mechanic/dashboard")
+    # Verify this record is assigned to the logged-in mechanic
+    mechanic_username = request.session.get("username")
+    if sales_record.pdi_assigned_to != mechanic_username:
+        return RedirectResponse(url="/mechanic/dashboard?error=Not authorized for this task")
 
-    # Verify this task is assigned to this mechanic
-    if sale.pdi_assigned_to != username:
-        return RedirectResponse(url="/mechanic/dashboard")
+    # Get available vehicles for this branch matching model/variant/color
+    available_vehicles = db.query(VehicleMaster).filter(
+        VehicleMaster.status == 'In Stock',
+        VehicleMaster.current_branch_id == sales_record.Branch_ID,
+        VehicleMaster.model == sales_record.Model,
+        VehicleMaster.variant == sales_record.Variant,
+        VehicleMaster.color == sales_record.Paint_Color
+    ).all()
 
-    # Get vehicle if exists
-    vehicle = None
-    if sale.chassis_no:
-        vehicle = db.query(VehicleMaster).filter(
-            VehicleMaster.chassis_no == sale.chassis_no
-        ).first()
-
-    # Get branch info
-    branch = db.query(Branch).filter(Branch.Branch_ID == sale.Branch_ID).first()
+    # Also get all in-stock vehicles at this branch (fallback)
+    all_available = db.query(VehicleMaster).filter(
+        VehicleMaster.status == 'In Stock',
+        VehicleMaster.current_branch_id == sales_record.Branch_ID
+    ).all()
 
     return templates.TemplateResponse(
-        "mechanic_pdi_checklist.html",
+        "mechanic_pdi_form.html",
         {
             "request": request,
-            "username": username,
-            "sale": sale,
-            "vehicle": vehicle,
-            "branch_name": branch.Branch_Name if branch else "N/A",
-            "current_page": "mechanic"
+            **context,
+            "sales_record": sales_record,
+            "available_vehicles": available_vehicles,
+            "current_page": "mechanic",
+            "error": request.query_params.get("error"),
+            "success": request.query_params.get("success")
         }
     )
 
 
-@router.post("/scan-qr")
-async def scan_qr_code(
+@router.post("/pdi/complete")
+async def complete_pdi_work(
         request: Request,
+        sale_id: int = Form(...),
+        chassis_no: str = Form(...),
+        engine_no: str = Form(None),
+        dc_number: str = Form(None),
         db: Session = Depends(get_db)
 ):
-    """Scan QR code to identify vehicle and link to sale"""
+    """Complete PDI using existing service function"""
 
     if not check_auth(request):
-        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
+        return RedirectResponse(url="/login")
 
-    try:
-        form_data = await request.form()
-        sale_id = int(form_data.get("sale_id"))
-        qr_data = form_data.get("qr_data", "").strip()
+    # Verify mechanic owns this task
+    mechanic_username = request.session.get("username")
+    sales_record = db.query(SalesRecord).filter(SalesRecord.id == sale_id).first()
 
-        if not qr_data:
-            return JSONResponse({"success": False, "message": "No QR data provided"})
+    if not sales_record or sales_record.pdi_assigned_to != mechanic_username:
+        return RedirectResponse(
+            url="/mechanic/dashboard?error=Not authorized",
+            status_code=303
+        )
 
-        # QR data should contain chassis number
-        # Format could be: CHASSIS:ME4KF19H5NK123456 or just the chassis number
-        chassis_no = qr_data
-        if ":" in qr_data:
-            parts = qr_data.split(":")
-            chassis_no = parts[-1].strip()
+    # Use existing complete_pdi function
+    success, message = sales_service.complete_pdi(
+        db=db,
+        sale_id=sale_id,
+        chassis_no=chassis_no.strip().upper(),
+        engine_no=engine_no.strip().upper() if engine_no else None,
+        dc_number=dc_number.strip() if dc_number else None
+    )
 
-        # Find vehicle in VehicleMaster
-        vehicle = db.query(VehicleMaster).filter(
-            VehicleMaster.chassis_no == chassis_no
-        ).first()
-
-        if not vehicle:
-            return JSONResponse({
-                "success": False,
-                "message": f"Vehicle with chassis {chassis_no} not found in inventory"
-            })
-
-        # Get sale record
-        sale = db.query(SalesRecord).filter(SalesRecord.id == sale_id).first()
-
-        if not sale:
-            return JSONResponse({"success": False, "message": "Sale record not found"})
-
-        # Update sale with vehicle details
-        sale.chassis_no = vehicle.chassis_no
-        sale.engine_no = vehicle.engine_no
-
-        # Update vehicle status
-        vehicle.status = "Allotted"
-        vehicle.sale_id = sale_id
-        vehicle.dc_number = sale.DC_Number
-
-        db.commit()
-
-        return JSONResponse({
-            "success": True,
-            "message": "Vehicle scanned successfully",
-            "chassis_no": vehicle.chassis_no,
-            "engine_no": vehicle.engine_no,
-            "model": vehicle.model,
-            "variant": vehicle.variant,
-            "color": vehicle.color
-        })
-
-    except Exception as e:
-        db.rollback()
-        return JSONResponse({
-            "success": False,
-            "message": f"Error scanning QR: {str(e)}"
-        }, status_code=500)
-
-
-@router.post("/complete-pdi")
-async def complete_pdi(
-        request: Request,
-        db: Session = Depends(get_db)
-):
-    """Mark PDI as complete"""
-
-    if not check_auth(request):
-        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
-
-    try:
-        form_data = await request.form()
-        sale_id = int(form_data.get("sale_id"))
-
-        # Get sale record
-        sale = db.query(SalesRecord).filter(SalesRecord.id == sale_id).first()
-
-        if not sale:
-            return JSONResponse({"success": False, "message": "Sale record not found"})
-
-        # Verify chassis and engine are filled
-        if not sale.chassis_no or not sale.engine_no:
-            return JSONResponse({
-                "success": False,
-                "message": "Please scan vehicle QR code first"
-            })
-
-        # Update sale status
-        sale.fulfillment_status = "PDI Complete"
-        sale.pdi_completion_date = datetime.now()
-
-        db.commit()
-
-        return JSONResponse({
-            "success": True,
-            "message": f"PDI completed for DC {sale.DC_Number}"
-        })
-
-    except Exception as e:
-        db.rollback()
-        return JSONResponse({
-            "success": False,
-            "message": f"Error completing PDI: {str(e)}"
-        }, status_code=500)
+    if success:
+        return RedirectResponse(
+            url=f"/mechanic/dashboard?success={message}",
+            status_code=303
+        )
+    else:
+        return RedirectResponse(
+            url=f"/mechanic/pdi/{sale_id}?error={message}",
+            status_code=303
+        )
