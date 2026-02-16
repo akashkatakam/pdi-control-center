@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import models
 from database import get_db
 from models import VehicleMaster, Branch, InventoryTransaction
-from services import branch_service, email_service
+from services import branch_service, email_service, stock_service
 from routers.overview import get_active_context, get_context_data, check_auth
 
 router = APIRouter(prefix="/logistics", tags=["logistics"])
@@ -29,11 +29,31 @@ async def receive_inward(
     context = get_context_data(request, db)
     active_branch_id = context["active_context"]
 
-    # Get pending loads from in-transit vehicles
-    pending_loads = email_service.get_pending_loads_for_branch(db, active_branch_id)
+    # Get pending loads using stock_service
+    pending_load_refs = stock_service.get_pending_loads(db, str(active_branch_id))
 
-    # Calculate totals
-    total_expected = sum(load['vehicle_count'] for load in pending_loads)
+    # Build loads data with vehicle details
+    loads_data = []
+    for load_ref in pending_load_refs:
+        # Use stock_service to get vehicles in this load
+        vehicles_df = stock_service.get_vehicles_in_load(
+            db=db,
+            branch_id=str(active_branch_id),
+            load_reference=load_ref
+        )
+
+        if not vehicles_df.empty:
+            vehicles_list = vehicles_df.to_dict('records')
+            loads_data.append({
+                "load_reference": load_ref,
+                "source_branch": "HMSI",  # or get from somewhere
+                "expected_date": datetime.now().strftime("%Y-%m-%d"),
+                "vehicle_count": len(vehicles_list),
+                "all_received": False,
+                "vehicles": vehicles_list
+            })
+
+    total_expected = sum(load['vehicle_count'] for load in loads_data)
 
     # Get today's receipts
     today = datetime.now().date()
@@ -65,18 +85,6 @@ async def receive_inward(
                 "received_at": receipt.Date.strftime("%Y-%m-%d")
             })
 
-    # Format loads for display
-    loads_data = []
-    for load in pending_loads:
-        loads_data.append({
-            "load_reference": load['load_reference'],
-            "source_branch": load['source_branch'],
-            "expected_date": datetime.now().strftime("%Y-%m-%d"),
-            "vehicle_count": load['vehicle_count'],
-            "all_received": False,
-            "vehicles": load['vehicles']
-        })
-
     return templates.TemplateResponse(
         "logistics_receive.html",
         {
@@ -86,7 +94,7 @@ async def receive_inward(
             "total_expected": total_expected,
             "today_received": today_received,
             "recent_receipts": recent_data[:5],
-            "unprocessed_emails": 0,  # Could track this
+            "unprocessed_emails": 0,
             "current_page": "logistics"
         }
     )
@@ -119,8 +127,7 @@ async def receive_load_action(
         pending_transactions = db.query(InventoryTransaction).filter(
             InventoryTransaction.Load_Number == load_number,
             InventoryTransaction.To_Branch_ID == receiving_branch_id,
-            InventoryTransaction.Transaction_Type == "OUTWARD",
-            InventoryTransaction.Status == "Pending"
+            InventoryTransaction.Transaction_Type == "OUTWARD"
         ).all()
 
         if not pending_transactions:
@@ -149,7 +156,6 @@ async def receive_load_action(
             # Create inward transaction
             inward_txn = InventoryTransaction(
                 Date=datetime.now().date(),
-                chassis_no=txn.chassis_no,
                 Model=txn.Model,
                 Variant=txn.Variant,
                 Color=txn.Color,
@@ -159,7 +165,6 @@ async def receive_load_action(
                 Current_Branch_ID=receiving_branch_id,
                 Quantity=txn.Quantity,
                 Load_Number=load_number,
-                Status="Completed",
                 Remarks=f"Received from Branch {txn.From_Branch_ID}"
             )
             db.add(inward_txn)
@@ -228,109 +233,6 @@ async def transfer_stock(
             "current_page": "logistics"
         }
     )
-
-
-@router.post("/transfer/create")
-async def create_transfer(
-        request: Request,
-        db: Session = Depends(get_db)
-):
-    """Create a new transfer - Only creates OUTWARD transaction"""
-
-    if not check_auth(request):
-        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
-
-    try:
-        form_data = await request.form()
-        to_branch_id = form_data.get("to_branch_id")
-
-        # Validate to_branch_id
-        if not to_branch_id:
-            return JSONResponse({
-                "success": False,
-                "message": "Destination branch is required"
-            })
-
-        to_branch_id = int(to_branch_id)
-        chassis_numbers = form_data.get("chassis_numbers", "").split(",")
-        chassis_numbers = [c.strip() for c in chassis_numbers if c.strip()]
-
-        if not chassis_numbers:
-            return JSONResponse({
-                "success": False,
-                "message": "At least one chassis number is required"
-            })
-
-        context = get_context_data(request, db)
-        from_branch_id = context["active_context"]
-
-        if not from_branch_id:
-            return JSONResponse({
-                "success": False,
-                "message": "Source branch information not found"
-            })
-
-        # Generate load number
-        load_number = f"LOAD{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        transferred_count = 0
-
-        for chassis_no in chassis_numbers:
-            # Get vehicle from VehicleMaster (verify and get details)
-            vehicle = db.query(VehicleMaster).filter(
-                VehicleMaster.chassis_no == chassis_no,
-                VehicleMaster.current_branch_id == from_branch_id,
-                VehicleMaster.status == "In Stock"
-            ).first()
-
-            if not vehicle:
-                continue
-
-            # Create outward transaction ONLY - do NOT update VehicleMaster
-            outward_txn = InventoryTransaction(
-                Date=datetime.now().date(),
-                chassis_no=chassis_no,
-                Model=vehicle.model,
-                Variant=vehicle.variant,
-                Color=vehicle.color,
-                Transaction_Type="OUTWARD",
-                From_Branch_ID=from_branch_id,
-                To_Branch_ID=to_branch_id,
-                Current_Branch_ID=from_branch_id,
-                Quantity=1,
-                Load_Number=load_number,
-                Status="Pending",
-                Remarks=f"Transfer to branch {to_branch_id}"
-            )
-            db.add(outward_txn)
-
-            transferred_count += 1
-
-        if transferred_count == 0:
-            db.rollback()
-            return JSONResponse({
-                "success": False,
-                "message": "No valid vehicles found for transfer. Please check chassis numbers."
-            })
-
-        db.commit()
-
-        return JSONResponse({
-            "success": True,
-            "message": f"Successfully created transfer with {transferred_count} vehicle(s). Load: {load_number}"
-        })
-
-    except ValueError as e:
-        return JSONResponse({
-            "success": False,
-            "message": "Invalid branch ID format"
-        }, status_code=400)
-    except Exception as e:
-        db.rollback()
-        return JSONResponse({
-            "success": False,
-            "message": f"Error creating transfer: {str(e)}"
-        }, status_code=500)
 
 
 @router.get("/manual-sale", response_class=HTMLResponse)
@@ -557,7 +459,7 @@ async def receive_load_form(
         request: Request,
         db: Session = Depends(get_db)
 ):
-    """Process receiving a load from the modal form"""
+    """Process receiving a load from the modal form - Uses stock_service"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
@@ -567,57 +469,47 @@ async def receive_load_form(
         load_reference = form_data.get("load_reference")
 
         if not load_reference:
-            return JSONResponse({"success": False, "error": "Load reference is required"})
+            return RedirectResponse(
+                url="/logistics/receive?error=load_required",
+                status_code=303
+            )
 
         context = get_context_data(request, db)
         receiving_branch_id = context["active_context"]
 
-        # Get all in-transit vehicles for this load
-        vehicles = db.query(models.VehicleMaster).filter(
-            models.VehicleMaster.load_reference_number == load_reference,
-            models.VehicleMaster.status == "In Transit"
-        ).all()
-
-        if not vehicles:
-            return JSONResponse({
-                "success": False,
-                "error": "No vehicles found for this load"
-            })
-
-        received_count = 0
-
-        for vehicle in vehicles:
-            # Update vehicle status and branch
-            vehicle.status = "In Stock"
-            vehicle.current_branch_id = receiving_branch_id
-
-            # Create inward transaction
-            inward_txn = InventoryTransaction(
-                Date=datetime.now().date(),
-                Model=vehicle.model,
-                Variant=vehicle.variant,
-                Color=vehicle.color,
-                Transaction_Type="INWARD",
-                From_Branch_ID=None,
-                Source_External='HMSI (Transit Received)',
-                To_Branch_ID=None,
-                Current_Branch_ID=receiving_branch_id,
-                Quantity=1,
-                Load_Number=load_reference,
-                Remarks=f"Received from load {load_reference}"
+        if not receiving_branch_id:
+            return RedirectResponse(
+                url="/logistics/receive?error=no_branch",
+                status_code=303
             )
-            db.add(inward_txn)
-            received_count += 1
 
-        db.commit()
+        # Use stock_service to receive the load
+        success, message = stock_service.receive_load(
+            db=db,
+            branch_id=str(receiving_branch_id),
+            load_reference=load_reference
+        )
 
-        # Redirect back to receive page with success message
-        return RedirectResponse(url="/logistics/receive?success=true", status_code=303)
+        if success:
+            # Redirect back to receive page with success message
+            return RedirectResponse(
+                url="/logistics/receive?success=true",
+                status_code=303
+            )
+        else:
+            # Redirect with error message
+            return RedirectResponse(
+                url=f"/logistics/receive?error=receive_failed&message={message[:100]}",
+                status_code=303
+            )
 
     except Exception as e:
         db.rollback()
         print(f"[RECEIVE LOAD ERROR] {str(e)}")
-        return RedirectResponse(url="/logistics/receive?error=true", status_code=303)
+        return RedirectResponse(
+            url="/logistics/receive?error=server_error",
+            status_code=303
+        )
 
 
 @router.get("/vehicle-details")
@@ -678,7 +570,7 @@ async def transfer_batch(
         request: Request,
         db: Session = Depends(get_db)
 ):
-    """Batch transfer with QR scanning - Updates VehicleMaster and creates double-entry transactions"""
+    """Batch transfer with QR scanning - Uses stock_service for transfer logic"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
@@ -728,80 +620,31 @@ async def transfer_batch(
             )
 
         transfer_date = datetime.now().date()
-        transferred_count = 0
-        errors = []
 
-        for chassis_no in chassis_numbers:
-            try:
-                # Get vehicle from VehicleMaster
-                vehicle = db.query(VehicleMaster).filter(
-                    VehicleMaster.chassis_no == chassis_no,
-                    VehicleMaster.current_branch_id == from_branch_id,
-                    VehicleMaster.status == "In Stock"
-                ).first()
+        # Use stock_service to handle the transfer
+        try:
+            stock_service.log_bulk_transfer_master(
+                db=db,
+                from_branch_id=str(from_branch_id),
+                to_branch_id=str(destination_branch),
+                date_val=transfer_date,
+                remarks=dc_number,  # DC number used as remarks
+                chassis_list=chassis_numbers
+            )
 
-                if not vehicle:
-                    errors.append(f"Vehicle {chassis_no} not found or not available")
-                    continue
-
-                # Update VehicleMaster - Move to destination branch
-                vehicle.current_branch_id = destination_branch
-                vehicle.dc_number = dc_number  # Store DC number in vehicle
-
-                # Create OUTWARD transaction at source branch
-                outward_txn = InventoryTransaction(
-                    Date=transfer_date,
-                    Model=vehicle.model,
-                    Variant=vehicle.variant,
-                    Color=vehicle.color,
-                    Transaction_Type="OUTWARD",
-                    From_Branch_ID=from_branch_id,
-                    To_Branch_ID=destination_branch,
-                    Current_Branch_ID=from_branch_id,
-                    Quantity=1,
-                    Load_Number=dc_number,
-                    Remarks=f"Transfer OUT to Branch {destination_branch} - DC: {dc_number}"
-                )
-                db.add(outward_txn)
-
-                # Create INWARD transaction at destination branch
-                inward_txn = InventoryTransaction(
-                    Date=transfer_date,
-                    chassis_no=chassis_no,
-                    Model=vehicle.model,
-                    Variant=vehicle.variant,
-                    Color=vehicle.color,
-                    Transaction_Type="INWARD",
-                    From_Branch_ID=from_branch_id,
-                    To_Branch_ID=None,
-                    Current_Branch_ID=destination_branch,
-                    Quantity=1,
-                    Load_Number=dc_number,
-                    Status="Completed",
-                    Remarks=f"Transfer IN from Branch {from_branch_id} - DC: {dc_number}"
-                )
-                db.add(inward_txn)
-
-                transferred_count += 1
-
-            except Exception as e:
-                errors.append(f"Error processing {chassis_no}: {str(e)}")
-                continue
-
-        if transferred_count == 0:
-            db.rollback()
+            # Success - redirect with success parameters
             return RedirectResponse(
-                url="/logistics/transfer?error=transfer_failed",
+                url=f"/logistics/transfer?success=true&count={len(chassis_numbers)}&dc={dc_number}",
                 status_code=303
             )
 
-        db.commit()
-
-        # Redirect with success parameters
-        return RedirectResponse(
-            url=f"/logistics/transfer?success=true&count={transferred_count}&dc={dc_number}",
-            status_code=303
-        )
+        except Exception as transfer_error:
+            # If stock_service raises an exception, show error
+            print(f"[TRANSFER ERROR] {str(transfer_error)}")
+            return RedirectResponse(
+                url=f"/logistics/transfer?error=transfer_failed&message={str(transfer_error)[:100]}",
+                status_code=303
+            )
 
     except ValueError as e:
         return RedirectResponse(

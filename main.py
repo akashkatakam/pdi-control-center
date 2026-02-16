@@ -7,8 +7,10 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 from pathlib import Path
 from datetime import datetime
+import time
 
 from routers import auth, overview, task_manager, inventory, logistics, reports, mechanic
+from utils.logger import setup_logger
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -16,6 +18,8 @@ app = FastAPI(
     description="Vehicle Tracking and PDI Operations Management System",
     version="1.0.6"
 )
+
+logger = setup_logger("main")
 
 # Add session middleware
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-please")
@@ -148,6 +152,28 @@ async def pwa_status():
         "version": "1.0.6"
     }
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    logger.info(f"Request: {request.method} {request.url.path}")
+    logger.debug(f"Headers: {dict(request.headers)}")
+
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+
+        logger.info(
+            f"Response: {request.method} {request.url.path} "
+            f"Status: {response.status_code} "
+            f"Time: {process_time:.3f}s"
+        )
+
+        return response
+    except Exception as e:
+        logger.error(f"Request failed: {request.method} {request.url.path}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
     import uvicorn
