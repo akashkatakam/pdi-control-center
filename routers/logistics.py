@@ -193,7 +193,7 @@ async def transfer_stock(
     active_branch_id = context["active_context"]
 
     # Get managed branches for transfer options
-    managed_branches = branch_service.get_managed_branches(db, active_branch_id)
+    branches = branch_service.get_all_branches(db)
 
     # Get available stock at active branch
     available_vehicles = db.query(VehicleMaster).filter(
@@ -214,8 +214,7 @@ async def transfer_stock(
             'load_number': txn.Load_Number,
             'to_branch': to_branch.Branch_Name if to_branch else 'Unknown',
             'date': txn.Date.strftime("%d %b %Y"),
-            'vehicles': txn.Quantity,
-            'status': txn.Status
+            'vehicles': txn.Quantity
         })
 
     return templates.TemplateResponse(
@@ -223,7 +222,7 @@ async def transfer_stock(
         {
             "request": request,
             **context,
-            "branches": managed_branches,
+            "branches": branches,
             "available_vehicles": available_vehicles,
             "recent_transfers": transfers,
             "current_page": "logistics"
@@ -619,3 +618,203 @@ async def receive_load_form(
         db.rollback()
         print(f"[RECEIVE LOAD ERROR] {str(e)}")
         return RedirectResponse(url="/logistics/receive?error=true", status_code=303)
+
+
+@router.get("/vehicle-details")
+async def get_vehicle_details(
+        chassis_no: str,
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Get vehicle details by chassis number"""
+
+    if not check_auth(request):
+        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
+
+    try:
+        # Query the vehicle from VehicleMaster
+        vehicle = db.query(VehicleMaster).filter(
+            VehicleMaster.chassis_no == chassis_no
+        ).first()
+
+        if not vehicle:
+            return JSONResponse({
+                "success": False,
+                "message": f"Vehicle with chassis number {chassis_no} not found"
+            }, status_code=404)
+
+        # Get branch information
+        branch = db.query(Branch).filter(
+            Branch.Branch_ID == vehicle.current_branch_id
+        ).first()
+
+        # Get recent transactions for this vehicle
+
+        # Build response
+        vehicle_data = {
+            "success": True,
+            "chassis_no": vehicle.chassis_no,
+            "engine_no": vehicle.engine_no,
+            "model": vehicle.model,
+            "variant": vehicle.variant,
+            "color": vehicle.color,
+            "status": vehicle.status,
+            "current_branch": branch.Branch_Name if branch else "Unknown",
+            "current_branch_id": vehicle.current_branch_id,
+            "load_reference_number": vehicle.load_reference_number
+        }
+
+        return JSONResponse(vehicle_data)
+
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": f"Error fetching vehicle details: {str(e)}"
+        }, status_code=500)
+
+
+@router.post("/transfer-batch")
+async def transfer_batch(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Batch transfer with QR scanning - Updates VehicleMaster and creates double-entry transactions"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    try:
+        form_data = await request.form()
+        destination_branch = form_data.get("destination_branch")
+        dc_number = form_data.get("dc_number", "").strip().upper()  # Capitalize DC number
+        chassis_numbers = form_data.get("chassis_numbers", "").split(",")
+        chassis_numbers = [c.strip() for c in chassis_numbers if c.strip()]
+
+        # Validate inputs
+        if not destination_branch:
+            return RedirectResponse(
+                url="/logistics/transfer?error=destination_required",
+                status_code=303
+            )
+
+        if not dc_number:
+            return RedirectResponse(
+                url="/logistics/transfer?error=dc_required",
+                status_code=303
+            )
+
+        if not chassis_numbers:
+            return RedirectResponse(
+                url="/logistics/transfer?error=no_vehicles",
+                status_code=303
+            )
+
+        destination_branch = int(destination_branch)
+
+        context = get_context_data(request, db)
+        from_branch_id = context["active_context"]
+
+        if not from_branch_id:
+            return RedirectResponse(
+                url="/logistics/transfer?error=no_branch",
+                status_code=303
+            )
+
+        # Prevent transfer to same branch
+        if from_branch_id == destination_branch:
+            return RedirectResponse(
+                url="/logistics/transfer?error=same_branch",
+                status_code=303
+            )
+
+        transfer_date = datetime.now().date()
+        transferred_count = 0
+        errors = []
+
+        for chassis_no in chassis_numbers:
+            try:
+                # Get vehicle from VehicleMaster
+                vehicle = db.query(VehicleMaster).filter(
+                    VehicleMaster.chassis_no == chassis_no,
+                    VehicleMaster.current_branch_id == from_branch_id,
+                    VehicleMaster.status == "In Stock"
+                ).first()
+
+                if not vehicle:
+                    errors.append(f"Vehicle {chassis_no} not found or not available")
+                    continue
+
+                # Update VehicleMaster - Move to destination branch
+                vehicle.current_branch_id = destination_branch
+                vehicle.dc_number = dc_number  # Store DC number in vehicle
+
+                # Create OUTWARD transaction at source branch
+                outward_txn = InventoryTransaction(
+                    Date=transfer_date,
+                    Model=vehicle.model,
+                    Variant=vehicle.variant,
+                    Color=vehicle.color,
+                    Transaction_Type="OUTWARD",
+                    From_Branch_ID=from_branch_id,
+                    To_Branch_ID=destination_branch,
+                    Current_Branch_ID=from_branch_id,
+                    Quantity=1,
+                    Load_Number=dc_number,
+                    Remarks=f"Transfer OUT to Branch {destination_branch} - DC: {dc_number}"
+                )
+                db.add(outward_txn)
+
+                # Create INWARD transaction at destination branch
+                inward_txn = InventoryTransaction(
+                    Date=transfer_date,
+                    chassis_no=chassis_no,
+                    Model=vehicle.model,
+                    Variant=vehicle.variant,
+                    Color=vehicle.color,
+                    Transaction_Type="INWARD",
+                    From_Branch_ID=from_branch_id,
+                    To_Branch_ID=None,
+                    Current_Branch_ID=destination_branch,
+                    Quantity=1,
+                    Load_Number=dc_number,
+                    Status="Completed",
+                    Remarks=f"Transfer IN from Branch {from_branch_id} - DC: {dc_number}"
+                )
+                db.add(inward_txn)
+
+                transferred_count += 1
+
+            except Exception as e:
+                errors.append(f"Error processing {chassis_no}: {str(e)}")
+                continue
+
+        if transferred_count == 0:
+            db.rollback()
+            return RedirectResponse(
+                url="/logistics/transfer?error=transfer_failed",
+                status_code=303
+            )
+
+        db.commit()
+
+        # Redirect with success parameters
+        return RedirectResponse(
+            url=f"/logistics/transfer?success=true&count={transferred_count}&dc={dc_number}",
+            status_code=303
+        )
+
+    except ValueError as e:
+        return RedirectResponse(
+            url="/logistics/transfer?error=invalid_data",
+            status_code=303
+        )
+    except Exception as e:
+        db.rollback()
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"[TRANSFER BATCH ERROR] {error_detail}")
+
+        return RedirectResponse(
+            url="/logistics/transfer?error=server_error",
+            status_code=303
+        )
