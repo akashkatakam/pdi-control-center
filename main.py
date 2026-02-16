@@ -24,8 +24,7 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 # Create static directory if it doesn't exist
 Path("static/css").mkdir(parents=True, exist_ok=True)
 Path("static/js").mkdir(parents=True, exist_ok=True)
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+Path("static/icons").mkdir(parents=True, exist_ok=True)
 
 # Serve manifest.json at root level (optional but recommended)
 # Serve manifest.json at root level with proper content type
@@ -83,6 +82,8 @@ async def root(request: Request):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "app": "PDI Control Center"}
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn
