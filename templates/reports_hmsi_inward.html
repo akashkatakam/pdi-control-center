@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}HMSI Inward Report - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header with Date Filter -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">📦 HMSI Inward Report</h1>
+            <p class="text-gray-600 mt-1">Stock receipts from Honda Motor Scooter India</p>
+        </div>
+        <a href="/reports" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold">
+            ← Back to Reports
+        </a>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <form method="GET" class="flex items-end gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-bold text-gray-700 mb-2">From Date</label>
+                <input type="date" name="from_date" value="{{ from_date }}" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-bold text-gray-700 mb-2">To Date</label>
+                <input type="date" name="to_date" value="{{ to_date }}" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                Apply Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-green-100 text-sm font-medium">Total Received</p>
+            <p class="text-4xl font-bold mt-2">{{ summary_metrics.total_received }}</p>
+            <p class="text-green-100 text-xs mt-1">{{ summary_metrics.total_loads }} loads</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-blue-100 text-sm font-medium">Today</p>
+            <p class="text-4xl font-bold mt-2">{{ summary_metrics.today_received }}</p>
+            <p class="text-blue-100 text-xs mt-1">Vehicles received</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-purple-100 text-sm font-medium">This Week</p>
+            <p class="text-4xl font-bold mt-2">{{ summary_metrics.week_received }}</p>
+            <p class="text-purple-100 text-xs mt-1">Vehicles received</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-orange-100 text-sm font-medium">Branches</p>
+            <p class="text-4xl font-bold mt-2">{{ summary_metrics.branches_count }}</p>
+            <p class="text-orange-100 text-xs mt-1">Receiving stock</p>
+        </div>
+    </div>
+
+    <!-- Model-wise Summary -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Model-wise Summary</h2>
+        </div>
+        <div class="p-6">
+            {% if model_summary %}
+            <div class="space-y-6">
+                {% for model in model_summary %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">{{ model.name }}</h3>
+                            <p class="text-sm text-gray-600">{{ model.total }} units ({{ model.percentage }}% of total)</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-3xl font-bold text-green-600">{{ model.total }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Variants Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Variant</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Color</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for variant in model.variants %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ variant.variant }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">{{ variant.color }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">{{ variant.branch }}</td>
+                                    <td class="px-4 py-3 text-sm font-bold text-right text-green-600">{{ variant.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <p class="text-gray-500 mt-4 font-semibold">No HMSI inward data for selected period</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Daily Trend -->
+    {% if daily_trend %}
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Daily Receiving Trend (Last 14 Days)</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-3">
+                {% for day in daily_trend %}
+                <div class="flex items-center gap-4">
+                    <div class="w-20 text-sm font-semibold text-gray-700">{{ day.date }}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                                <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3"
+                                     style="width: {{ day.percentage }}%">
+                                    <span class="text-white text-xs font-bold">{{ day.vehicles }}</span>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 w-20 text-right">{{ day.loads }} loads</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Load Details -->
+    {% if load_details %}
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Load-wise Details</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for load in load_details %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Load #{{ load.load_number }}</h3>
+                            <p class="text-sm text-gray-600">{{ load.date }} • {{ load.branch }}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-purple-600">{{ load.total_vehicles }}</div>
+                            <div class="text-xs text-gray-500">vehicles</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {% for vehicle in load.vehicles %}
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500">{{ vehicle.model }}</p>
+                            <p class="font-semibold text-sm text-gray-900">{{ vehicle.variant }}</p>
+                            <p class="text-xs text-gray-600">{{ vehicle.color }} • Qty: {{ vehicle.quantity }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,133 +1,223 @@
 {% extends "base.html" %}
 
-{% block title %}Stock Summary Report - PDI Control Center{% endblock %}
+{% block title %}Stock Summary - PDI Control Center{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
+
     <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
-                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">📦 Stock Summary Report</h1>
-                <p class="text-sm text-gray-600">Current inventory across all branches</p>
-            </div>
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">📦 Stock Summary</h1>
+            <p class="text-gray-600 mt-1">Current inventory across all branches</p>
         </div>
-        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-            🖨️ Print
-        </button>
+        <a href="/reports" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold">
+            ← Back to Reports
+        </a>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-green-100 text-xs mb-1">Total Stock</p>
-            <p class="text-4xl font-bold">{{ summary.total_stock }}</p>
-            <p class="text-green-100 text-xs mt-2">Across all branches</p>
+    <!-- Total Stock Card -->
+    <div class="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg p-8 text-white">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-blue-100 text-lg font-medium">Total Stock</p>
+                <p class="text-6xl font-bold mt-2">{{ total_stock }}</p>
+                <p class="text-blue-100 text-sm mt-2">Vehicles in inventory</p>
+            </div>
+            <div class="bg-white bg-opacity-20 rounded-lg p-6">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
         </div>
+    </div>
 
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-blue-100 text-xs mb-1">Available</p>
-            <p class="text-4xl font-bold">{{ summary.available }}</p>
-            <p class="text-blue-100 text-xs mt-2">Ready for sale</p>
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">Models</h3>
+            <p class="text-3xl font-bold text-gray-900">{{ models|length }}</p>
         </div>
-
-        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-orange-100 text-xs mb-1">Reserved</p>
-            <p class="text-4xl font-bold">{{ summary.reserved }}</p>
-            <p class="text-orange-100 text-xs mt-2">Under PDI/Sold</p>
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">Variants</h3>
+            <p class="text-3xl font-bold text-gray-900">{{ variants|length }}</p>
         </div>
-
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-purple-100 text-xs mb-1">In Transit</p>
-            <p class="text-4xl font-bold">{{ summary.in_transit }}</p>
-            <p class="text-purple-100 text-xs mt-2">Moving between branches</p>
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">Colors</h3>
+            <p class="text-3xl font-bold text-gray-900">{{ colors|length }}</p>
         </div>
     </div>
 
     <!-- Branch-wise Stock -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="bg-gray-50 px-5 py-4 border-b">
-            <h3 class="font-bold text-lg text-gray-900">Branch-wise Stock Distribution</h3>
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Branch-wise Stock</h2>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Branch</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Total Stock</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Available</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Reserved</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Days Stock</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for branch in branches %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ branch.name }}</td>
-                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ branch.total }}</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.available }}</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.reserved }}</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ branch.days_stock }} days</td>
-                        <td class="px-4 py-3 text-center">
-                            {% if branch.stock_level == 'good' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                ✓ Good
-                            </span>
-                            {% elif branch.stock_level == 'low' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                ⚠️ Low
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                ⚠️ Critical
-                            </span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="p-6">
+            {% if branch_stock %}
+            <div class="space-y-4">
+                {% for branch in branch_stock %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-bold text-gray-900">{{ branch.name }}</h3>
+                        <span class="text-3xl font-bold text-green-600">{{ branch.total }}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        {% for model in branch.models %}
+                        <div class="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                            <span class="text-sm font-semibold text-gray-900">{{ model.name }}</span>
+                            <span class="text-xs text-gray-600 ml-2">× {{ model.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-gray-500 py-8">No stock data available</p>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Model-wise Stock -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="bg-gray-50 px-5 py-4 border-b flex justify-between items-center">
-            <h3 class="font-bold text-lg text-gray-900">Model-wise Stock</h3>
-            <a href="/reports/model-wise" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                View Detailed →
-            </a>
+    <!-- Model-Variant Detailed Breakdown -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Model-wise Detailed Breakdown</h2>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Total Units</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">% of Stock</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Top Variant</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Top Color</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for model in models %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ model.name }}</td>
-                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ model.units }}</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.percentage }}%</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.top_variant }}</td>
-                        <td class="px-4 py-3 text-center text-sm text-gray-700">{{ model.top_color }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="p-6">
+            {% if model_variant_summary %}
+            <div class="space-y-6">
+                {% for model_data in model_variant_summary %}
+                <div class="border-2 border-gray-200 rounded-xl p-6">
+                    <!-- Model Header -->
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ model_data.model }}</h3>
+                            <p class="text-sm text-gray-600">{{ model_data.total }} units ({{ model_data.percentage }}% of total stock)</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-5xl font-bold text-purple-600">{{ model_data.total }}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <!-- Variants -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                </svg>
+                                Variants
+                            </h4>
+                            <div class="space-y-2">
+                                {% for variant in model_data.variants %}
+                                <div class="flex items-center justify-between bg-white rounded px-3 py-2">
+                                    <span class="text-sm font-semibold text-gray-900">{{ variant.name }}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500">{{ variant.percentage }}%</span>
+                                        <span class="bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-bold">{{ variant.count }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Colors -->
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                                </svg>
+                                Colors
+                            </h4>
+                            <div class="space-y-2">
+                                {% for color in model_data.colors %}
+                                <div class="flex items-center justify-between bg-white rounded px-3 py-2">
+                                    <span class="text-sm font-semibold text-gray-900">{{ color.name }}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500">{{ color.percentage }}%</span>
+                                        <span class="bg-green-600 text-white px-2 py-1 rounded-full text-xs font-bold">{{ color.count }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Branches -->
+                        <div class="bg-orange-50 rounded-lg p-4">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                Branches
+                            </h4>
+                            <div class="space-y-2">
+                                {% for branch in model_data.branches %}
+                                <div class="flex items-center justify-between bg-white rounded px-3 py-2">
+                                    <span class="text-sm font-semibold text-gray-900">{{ branch.name }}</span>
+                                    <span class="bg-orange-600 text-white px-2 py-1 rounded-full text-xs font-bold">{{ branch.count }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-gray-500 py-8">No model data available</p>
+            {% endif %}
         </div>
     </div>
+
+    <!-- Overall Distribution Charts -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Top Models -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-4">
+                <h2 class="text-lg font-bold text-white">Top Models</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    {% for model in models[:10] %}
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-semibold text-gray-900">{{ model.name }}</span>
+                            <span class="text-sm text-gray-600">{{ model.count }} ({{ model.percentage }}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                                 style="width: {{ model.percentage }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Colors -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="bg-gradient-to-r from-pink-600 to-rose-600 px-6 py-4">
+                <h2 class="text-lg font-bold text-white">Top Colors</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    {% for color in colors[:10] %}
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-semibold text-gray-900">{{ color.name }}</span>
+                            <span class="text-sm text-gray-600">{{ color.count }} ({{ color.percentage }}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-pink-500 to-rose-500 h-3 rounded-full transition-all duration-500"
+                                 style="width: {{ color.percentage }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

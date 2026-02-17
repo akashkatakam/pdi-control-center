@@ -1,9 +1,10 @@
 # routers/reports.py - Complete version with all reports
+import pandas as pd
 from fastapi import APIRouter, Request, Depends, Query
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, distinct
+from sqlalchemy import func, and_, distinct,or_
 from datetime import datetime, timedelta
 import io
 import csv
@@ -205,16 +206,15 @@ def get_recent_activities(db: Session, branch_ids: list, limit: int = 10):
     return activities[:limit]
 
 
-# ==================== STOCK MOVEMENT REPORT ====================
+# ==================== STOCK MOVEMENT REPORT (REDESIGNED) ====================
 @router.get("/stock-movement", response_class=HTMLResponse)
 async def stock_movement_report(
         request: Request,
         from_date: str = Query(None),
         to_date: str = Query(None),
-        transaction_type: str = Query("all"),
         db: Session = Depends(get_db)
 ):
-    """Stock Movement Report"""
+    """Stock Movement Report - Branch Transfer Summary"""
 
     if not check_auth(request):
         return RedirectResponse(url="/login")
@@ -227,121 +227,191 @@ async def stock_movement_report(
     if not to_date:
         to_date = datetime.now().strftime("%Y-%m-%d")
 
-    from_dt = datetime.strptime(from_date, "%Y-%m-%d")
-    to_dt = datetime.strptime(to_date, "%Y-%m-%d")
+    from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+    to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
 
     managed_branches = branch_service.get_managed_branches(db, active_branch_id)
     branch_ids = [branch.Branch_ID for branch in managed_branches]
 
-    # Query transactions
-    query = db.query(InventoryTransaction, Branch).join(
-        Branch, InventoryTransaction.Current_Branch_ID == Branch.Branch_ID
+    # ===== SINGLE DB CALL: Fetch all transactions =====
+    query = db.query(
+        InventoryTransaction.Date,
+        InventoryTransaction.Transaction_Type,
+        InventoryTransaction.Current_Branch_ID,
+        InventoryTransaction.From_Branch_ID,
+        InventoryTransaction.To_Branch_ID,
+        InventoryTransaction.Model,
+        InventoryTransaction.Variant,
+        InventoryTransaction.Color,
+        InventoryTransaction.Quantity,
+        InventoryTransaction.Load_Number
     ).filter(
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date()
+        InventoryTransaction.Date >= from_dt,
+        InventoryTransaction.Date <= to_dt,
+        or_(
+            InventoryTransaction.Current_Branch_ID.in_(branch_ids),
+            InventoryTransaction.From_Branch_ID.in_(branch_ids),
+            InventoryTransaction.To_Branch_ID.in_(branch_ids)
+        )
     )
 
-    if transaction_type == "inward":
-        query = query.filter(InventoryTransaction.Transaction_Type == "INWARD")
-    elif transaction_type == "outward":
-        query = query.filter(InventoryTransaction.Transaction_Type == "OUTWARD")
+    df = pd.read_sql(query.statement, db.get_bind())
 
-    transactions_data = query.order_by(InventoryTransaction.Date.desc()).all()
+    if df.empty:
+        return templates.TemplateResponse(
+            "reports_stock_movement.html",
+            {
+                "request": request,
+                **context,
+                "from_date": from_date,
+                "to_date": to_date,
+                "summary": {'total_sent': 0, 'total_received': 0, 'unique_branches': 0, 'unique_models': 0},
+                "branch_transfers": [],
+                "model_transfers": [],
+                "transfer_matrix": [],
+                "current_page": "reports"
+            }
+        )
 
-    # Calculate summary
-    total_inward = db.query(func.sum(InventoryTransaction.Quantity)).filter(
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Transaction_Type == "INWARD",
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date()
-    ).scalar() or 0
+    # Get all branches (including external ones)
+    all_branch_ids = set(df['Current_Branch_ID'].dropna()) | set(df['From_Branch_ID'].dropna()) | set(
+        df['To_Branch_ID'].dropna())
+    all_branches = db.query(Branch).filter(Branch.Branch_ID.in_(all_branch_ids)).all()
+    branch_map = {b.Branch_ID: b.Branch_Name for b in all_branches}
 
-    total_outward = db.query(func.sum(InventoryTransaction.Quantity)).filter(
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Transaction_Type == "OUTWARD",
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date()
-    ).scalar() or 0
+    # Add branch names
+    df['Current_Branch_Name'] = df['Current_Branch_ID'].map(branch_map)
+    df['From_Branch_Name'] = df['From_Branch_ID'].map(branch_map)
+    df['To_Branch_Name'] = df['To_Branch_ID'].map(branch_map)
 
-    inward_loads = db.query(func.count(distinct(InventoryTransaction.Load_Number))).filter(
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Transaction_Type == "INWARD",
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date(),
-        InventoryTransaction.Load_Number.isnot(None)
-    ).scalar() or 0
+    # Separate inward and outward
+    outward_df = df[df['Transaction_Type'] == 'OUTWARD'].copy()
+    inward_df = df[df['Transaction_Type'] == 'INWARD'].copy()
 
-    outward_loads = db.query(func.count(distinct(InventoryTransaction.Load_Number))).filter(
-        InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-        InventoryTransaction.Transaction_Type == "OUTWARD",
-        InventoryTransaction.Date >= from_dt.date(),
-        InventoryTransaction.Date <= to_dt.date(),
-        InventoryTransaction.Load_Number.isnot(None)
-    ).scalar() or 0
-
+    # ===== SUMMARY METRICS =====
     summary = {
-        'total_inward': int(total_inward),
-        'total_outward': int(total_outward),
-        'net_movement': int(total_inward - total_outward),
-        'inward_loads': inward_loads,
-        'outward_loads': outward_loads,
-        'branches_count': len(branch_ids)
+        'total_sent': int(outward_df['Quantity'].sum()) if not outward_df.empty else 0,
+        'total_received': int(inward_df['Quantity'].sum()) if not inward_df.empty else 0,
+        'unique_branches': len(all_branch_ids),
+        'unique_models': df['Model'].nunique()
     }
 
-    # Format transactions
-    transactions = []
-    for txn, branch in transactions_data:
-        from_branch_obj = None
-        if txn.From_Branch_ID:
-            from_branch_obj = db.query(Branch).filter(Branch.Branch_ID == txn.From_Branch_ID).first()
+    # ===== BRANCH-TO-BRANCH TRANSFER SUMMARY =====
+    branch_transfers = []
 
-        transactions.append({
-            'date': txn.Date.strftime("%d %b %Y"),
-            'type': txn.Transaction_Type,
-            'from_branch': from_branch_obj.Branch_Name if from_branch_obj else None,
-            'to_branch': branch.Branch_Name,
-            'model': txn.Model,
-            'variant': txn.Variant,
-            'quantity': txn.Quantity,
-            'load_number': txn.Load_Number
-        })
+    if not outward_df.empty:
+        # For OUTWARD transactions:
+        # - Source = Current_Branch_ID (where the transfer originates)
+        # - Destination = To_Branch_ID (where it's going)
 
-    # Daily summary
-    daily_summary = []
-    current_date = from_dt.date()
-    max_daily = 0
+        # Use Current_Branch as the "From" for outward transactions
+        outward_df['Source_Branch'] = outward_df['Current_Branch_Name']
+        outward_df['Dest_Branch'] = outward_df['To_Branch_Name']
 
-    while current_date <= to_dt.date():
-        inward = db.query(func.sum(InventoryTransaction.Quantity)).filter(
-            InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-            InventoryTransaction.Transaction_Type == "INWARD",
-            InventoryTransaction.Date == current_date
-        ).scalar() or 0
+        # Group by Source → Destination
+        transfer_summary = outward_df.groupby(['Source_Branch', 'Dest_Branch']).agg({
+            'Quantity': 'sum',
+            'Load_Number': 'nunique',
+            'Model': lambda x: x.value_counts().to_dict()
+        }).reset_index()
 
-        outward = db.query(func.sum(InventoryTransaction.Quantity)).filter(
-            InventoryTransaction.Current_Branch_ID.in_(branch_ids),
-            InventoryTransaction.Transaction_Type == "OUTWARD",
-            InventoryTransaction.Date == current_date
-        ).scalar() or 0
+        for _, row in transfer_summary.iterrows():
+            source_branch = row['Source_Branch']
+            dest_branch = row['Dest_Branch']
 
-        max_daily = max(max_daily, int(inward), int(outward))
+            # Skip if both are NaN
+            if pd.isna(source_branch) and pd.isna(dest_branch):
+                continue
 
-        daily_summary.append({
-            'date': current_date.strftime("%d %b"),
-            'inward': int(inward),
-            'outward': int(outward),
-            'inward_percent': 0,
-            'outward_percent': 0
-        })
+            total_qty = int(row['Quantity'])
+            loads = int(row['Load_Number'])
+            model_breakdown = row['Model']
 
-        current_date += timedelta(days=1)
+            # Format model breakdown
+            models_list = [
+                {'model': k, 'qty': int(v)}
+                for k, v in sorted(model_breakdown.items(), key=lambda x: x[1], reverse=True)
+            ]
 
-    # Calculate percentages
-    for day in daily_summary:
-        if max_daily > 0:
-            day['inward_percent'] = round((day['inward'] / max_daily) * 100)
-            day['outward_percent'] = round((day['outward'] / max_daily) * 100)
+            branch_transfers.append({
+                'from_branch': source_branch if pd.notna(source_branch) else 'Unknown',
+                'to_branch': dest_branch if pd.notna(dest_branch) else 'Unknown',
+                'total_quantity': total_qty,
+                'loads': loads,
+                'models': models_list
+            })
+
+        # Sort by quantity descending
+        branch_transfers = sorted(branch_transfers, key=lambda x: x['total_quantity'], reverse=True)
+
+    # ===== MODEL-WISE TRANSFER SUMMARY =====
+    model_transfers = []
+
+    if not outward_df.empty:
+        # Group by Model and aggregate destinations
+        model_summary = outward_df.groupby('Model').agg({
+            'Quantity': 'sum',
+            'To_Branch_Name': lambda x: x.value_counts().to_dict(),
+            'Variant': lambda x: x.value_counts().to_dict()
+        }).reset_index()
+
+        for _, row in model_summary.iterrows():
+            model = row['Model']
+            total_qty = int(row['Quantity'])
+            destinations = row['To_Branch_Name']
+            variants = row['Variant']
+
+            # Top destinations
+            top_destinations = [
+                {'branch': k, 'qty': int(v)}
+                for k, v in sorted(destinations.items(), key=lambda x: x[1], reverse=True)[:3]
+            ]
+
+            # Variant breakdown
+            variant_list = [
+                {'variant': k, 'qty': int(v)}
+                for k, v in sorted(variants.items(), key=lambda x: x[1], reverse=True)
+            ]
+
+            model_transfers.append({
+                'model': model,
+                'total_quantity': total_qty,
+                'destinations': top_destinations,
+                'variants': variant_list
+            })
+
+        # Sort by quantity descending
+        model_transfers = sorted(model_transfers, key=lambda x: x['total_quantity'], reverse=True)
+
+    # ===== TRANSFER MATRIX (Source x Destination) =====
+    transfer_matrix = []
+
+    if not outward_df.empty:
+        # Create pivot table: From Branch (rows) x To Branch (columns)
+        pivot = outward_df.pivot_table(
+            values='Quantity',
+            index='From_Branch_Name',
+            columns='To_Branch_Name',
+            aggfunc='sum',
+            fill_value=0
+        )
+
+        for from_branch in pivot.index:
+            row_data = {
+                'from_branch': from_branch if pd.notna(from_branch) else 'External',
+                'destinations': []
+            }
+
+            for to_branch in pivot.columns:
+                qty = int(pivot.loc[from_branch, to_branch])
+                if qty > 0:
+                    row_data['destinations'].append({
+                        'branch': to_branch if pd.notna(to_branch) else 'External',
+                        'quantity': qty
+                    })
+
+            if row_data['destinations']:
+                transfer_matrix.append(row_data)
 
     return templates.TemplateResponse(
         "reports_stock_movement.html",
@@ -350,10 +420,10 @@ async def stock_movement_report(
             **context,
             "from_date": from_date,
             "to_date": to_date,
-            "transaction_type": transaction_type,
             "summary": summary,
-            "transactions": transactions,
-            "daily_summary": daily_summary[-14:],  # Last 14 days
+            "branch_transfers": branch_transfers,
+            "model_transfers": model_transfers,
+            "transfer_matrix": transfer_matrix,
             "current_page": "reports"
         }
     )
@@ -1342,3 +1412,358 @@ async def debug_sales_data(
         },
         "total_branches_with_sales": len(sales_data)
     })
+
+
+# ==================== STOCK SUMMARY REPORT (OPTIMIZED WITH MODEL-VARIANT) ====================
+@router.get("/stock-summary", response_class=HTMLResponse)
+async def stock_summary_report(
+        request: Request,
+        db: Session = Depends(get_db)
+):
+    """Current Stock Summary Report - Optimized with Model-Variant Breakdown"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    context = get_context_data(request, db)
+    active_branch_id = context["active_context"]
+
+    managed_branches = branch_service.get_managed_branches(db, active_branch_id)
+    branch_ids = [branch.Branch_ID for branch in managed_branches]
+
+    # Create branch mapping (already loaded, no extra query)
+    branch_map = {b.Branch_ID: b.Branch_Name for b in managed_branches}
+
+    # ===== SINGLE DB CALL: Fetch all vehicles at once =====
+    query = db.query(
+        VehicleMaster.current_branch_id,
+        VehicleMaster.model,
+        VehicleMaster.variant,
+        VehicleMaster.color,
+        VehicleMaster.chassis_no
+    ).filter(
+        VehicleMaster.current_branch_id.in_(branch_ids),
+        VehicleMaster.status == "In Stock"
+    )
+
+    # Load into DataFrame (single DB call)
+    df = pd.read_sql(query.statement, db.get_bind())
+
+    if df.empty:
+        return templates.TemplateResponse(
+            "reports_stock_summary.html",
+            {
+                "request": request,
+                **context,
+                "total_stock": 0,
+                "branch_stock": [],
+                "models": [],
+                "colors": [],
+                "variants": [],
+                "model_variant_summary": [],
+                "current_page": "reports"
+            }
+        )
+
+    # Add branch names
+    df['branch_name'] = df['current_branch_id'].map(branch_map)
+
+    total_stock = len(df)
+
+    # ===== BRANCH-WISE SUMMARY (in-memory) =====
+    branch_stock = []
+
+    branch_grouped = df.groupby('branch_name')
+    for branch_name, branch_df in branch_grouped:
+        # Model counts for this branch
+        model_counts = branch_df['model'].value_counts().to_dict()
+
+        branch_stock.append({
+            'name': branch_name,
+            'total': len(branch_df),
+            'models': [
+                {'name': k, 'count': int(v)}
+                for k, v in sorted(model_counts.items(), key=lambda x: x[1], reverse=True)
+            ]
+        })
+
+    # Sort by total stock descending
+    branch_stock = sorted(branch_stock, key=lambda x: x['total'], reverse=True)
+
+    # ===== OVERALL MODEL SUMMARY (in-memory) =====
+    model_counts = df['model'].value_counts().to_dict()
+    models = [
+        {
+            'name': k,
+            'count': int(v),
+            'percentage': round((v / total_stock * 100), 1)
+        }
+        for k, v in model_counts.items()
+    ]
+    models = sorted(models, key=lambda x: x['count'], reverse=True)
+
+    # ===== COLOR SUMMARY (in-memory) =====
+    color_counts = df['color'].value_counts().to_dict()
+    colors = [
+        {
+            'name': k,
+            'count': int(v),
+            'percentage': round((v / total_stock * 100), 1)
+        }
+        for k, v in color_counts.items()
+    ]
+    colors = sorted(colors, key=lambda x: x['count'], reverse=True)
+
+    # ===== VARIANT SUMMARY (in-memory) =====
+    variant_counts = df['variant'].value_counts().to_dict()
+    variants = [
+        {
+            'name': k,
+            'count': int(v),
+            'percentage': round((v / total_stock * 100), 1)
+        }
+        for k, v in variant_counts.items()
+    ]
+    variants = sorted(variants, key=lambda x: x['count'], reverse=True)
+
+    # ===== MODEL-VARIANT BREAKDOWN (in-memory) =====
+    model_variant_summary = []
+
+    model_grouped = df.groupby('model')
+    for model, model_df in model_grouped:
+        # Variant breakdown for this model
+        variant_counts = model_df['variant'].value_counts().to_dict()
+
+        # Color breakdown for this model
+        color_counts = model_df['color'].value_counts().to_dict()
+
+        # Branch-wise breakdown for this model
+        branch_counts = model_df['branch_name'].value_counts().to_dict()
+
+        model_total = len(model_df)
+        model_percentage = round((model_total / total_stock * 100), 1)
+
+        model_variant_summary.append({
+            'model': model,
+            'total': model_total,
+            'percentage': model_percentage,
+            'variants': [
+                {
+                    'name': k,
+                    'count': int(v),
+                    'percentage': round((v / model_total * 100), 1)
+                }
+                for k, v in sorted(variant_counts.items(), key=lambda x: x[1], reverse=True)
+            ],
+            'colors': [
+                {
+                    'name': k,
+                    'count': int(v),
+                    'percentage': round((v / model_total * 100), 1)
+                }
+                for k, v in sorted(color_counts.items(), key=lambda x: x[1], reverse=True)
+            ],
+            'branches': [
+                {
+                    'name': k,
+                    'count': int(v)
+                }
+                for k, v in sorted(branch_counts.items(), key=lambda x: x[1], reverse=True)
+            ]
+        })
+
+    # Sort by total descending
+    model_variant_summary = sorted(model_variant_summary, key=lambda x: x['total'], reverse=True)
+
+    return templates.TemplateResponse(
+        "reports_stock_summary.html",
+        {
+            "request": request,
+            **context,
+            "total_stock": total_stock,
+            "branch_stock": branch_stock,
+            "models": models,
+            "colors": colors,
+            "variants": variants,
+            "model_variant_summary": model_variant_summary,
+            "current_page": "reports"
+        }
+    )
+
+
+# ==================== HMSI INWARD REPORT ====================
+@router.get("/hmsi-inward", response_class=HTMLResponse)
+async def hmsi_inward_report(
+        request: Request,
+        from_date: str = Query(None),
+        to_date: str = Query(None),
+        db: Session = Depends(get_db)
+):
+    """HMSI Inward Report - OEM Stock Receipts"""
+
+    if not check_auth(request):
+        return RedirectResponse(url="/login")
+
+    context = get_context_data(request, db)
+    active_branch_id = context["active_context"]
+
+    # Set default date range (last 30 days)
+    if not from_date:
+        from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not to_date:
+        to_date = datetime.now().strftime("%Y-%m-%d")
+
+    from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+    to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+    # Get managed branches
+    managed_branches = branch_service.get_managed_branches(db, active_branch_id)
+    branch_ids = [branch.Branch_ID for branch in managed_branches]
+
+    # Aggregate data across all managed branches
+    all_summary_data = []
+    all_load_data = []
+    all_daily_data = []
+
+    for branch_id in branch_ids:
+        # Get summary data
+        summary_df = report_service.get_oem_inward_summary(db, branch_id, from_dt, to_dt)
+        if not summary_df.empty:
+            summary_df['Branch_ID'] = branch_id
+            all_summary_data.append(summary_df)
+
+        # Get load data
+        load_df = report_service.get_oem_inward_by_load(db, branch_id, from_dt, to_dt)
+        if not load_df.empty:
+            load_df['Branch_ID'] = branch_id
+            all_load_data.append(load_df)
+
+        # Get daily trend
+        daily_df = report_service.get_oem_inward_daily_trend(db, branch_id, from_dt, to_dt)
+        if not daily_df.empty:
+            daily_df['Branch_ID'] = branch_id
+            all_daily_data.append(daily_df)
+
+    # Combine all data
+    summary_df = pd.concat(all_summary_data) if all_summary_data else pd.DataFrame()
+    load_df = pd.concat(all_load_data) if all_load_data else pd.DataFrame()
+    daily_df = pd.concat(all_daily_data) if all_daily_data else pd.DataFrame()
+
+    # Calculate summary metrics
+    total_received = int(summary_df['Total_Received'].sum()) if not summary_df.empty else 0
+    total_loads = len(load_df['Load_Number'].unique()) if not load_df.empty else 0
+
+    # Today's count
+    today = datetime.now().date()
+    today_received = int(daily_df[daily_df['Date'] == today]['Total_Vehicles'].sum()) if not daily_df.empty else 0
+
+    # This week's count
+    week_start = today - timedelta(days=today.weekday())
+    week_received = int(daily_df[daily_df['Date'] >= week_start]['Total_Vehicles'].sum()) if not daily_df.empty else 0
+
+    summary_metrics = {
+        'total_received': total_received,
+        'total_loads': total_loads,
+        'today_received': today_received,
+        'week_received': week_received,
+        'branches_count': len(branch_ids)
+    }
+
+    # Format summary data for template (grouped by Model)
+    model_summary = []
+    if not summary_df.empty:
+        for model in summary_df['Model'].unique():
+            model_data = summary_df[summary_df['Model'] == model]
+
+            variants = []
+            for _, row in model_data.iterrows():
+                # Get branch name
+                branch = db.query(Branch).filter(Branch.Branch_ID == row['Branch_ID']).first()
+                branch_name = branch.Branch_Name if branch else 'Unknown'
+
+                variants.append({
+                    'variant': row['Variant'],
+                    'color': row['Color'],
+                    'quantity': int(row['Total_Received']),
+                    'branch': branch_name
+                })
+
+            model_total = int(model_data['Total_Received'].sum())
+            model_percentage = round((model_total / total_received * 100), 1) if total_received > 0 else 0
+
+            model_summary.append({
+                'name': model,
+                'total': model_total,
+                'percentage': model_percentage,
+                'variants': variants
+            })
+
+        # Sort by total descending
+        model_summary = sorted(model_summary, key=lambda x: x['total'], reverse=True)
+
+    # Format load details for template
+    load_details = []
+    if not load_df.empty:
+        # Group by load number
+        for load_num in load_df['Load_Number'].unique():
+            load_data = load_df[load_df['Load_Number'] == load_num]
+
+            # Get first record for date and branch
+            first_record = load_data.iloc[0]
+            branch = db.query(Branch).filter(Branch.Branch_ID == first_record['Branch_ID']).first()
+
+            # Get vehicles in this load
+            vehicles = []
+            for _, row in load_data.iterrows():
+                vehicles.append({
+                    'model': row['Model'],
+                    'variant': row['Variant'],
+                    'color': row['Color'],
+                    'quantity': int(row['Quantity'])
+                })
+
+            load_details.append({
+                'date': first_record['Date'].strftime("%d %b %Y"),
+                'load_number': load_num,
+                'branch': branch.Branch_Name if branch else 'Unknown',
+                'total_vehicles': int(load_data['Quantity'].sum()),
+                'vehicles': vehicles
+            })
+
+        # Sort by date descending
+        load_details = sorted(load_details, key=lambda x: x['date'], reverse=True)
+
+    # Format daily trend for chart
+    daily_trend = []
+    if not daily_df.empty:
+        # Group by date and sum
+        daily_grouped = daily_df.groupby('Date').agg({
+            'Loads': 'sum',
+            'Total_Vehicles': 'sum'
+        }).reset_index()
+
+        max_vehicles = daily_grouped['Total_Vehicles'].max()
+
+        for _, row in daily_grouped.iterrows():
+            percentage = round((row['Total_Vehicles'] / max_vehicles * 100)) if max_vehicles > 0 else 0
+            daily_trend.append({
+                'date': row['Date'].strftime("%d %b"),
+                'loads': int(row['Loads']),
+                'vehicles': int(row['Total_Vehicles']),
+                'percentage': percentage
+            })
+
+    return templates.TemplateResponse(
+        "reports_hmsi_inward.html",
+        {
+            "request": request,
+            **context,
+            "from_date": from_date,
+            "to_date": to_date,
+            "summary_metrics": summary_metrics,
+            "model_summary": model_summary,
+            "load_details": load_details,
+            "daily_trend": daily_trend[-14:],  # Last 14 days
+            "current_page": "reports"
+        }
+    )

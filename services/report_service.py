@@ -225,4 +225,52 @@ def get_branch_transfer_summary(db: Session, from_branch_id: int, start_date: da
 
 
 
+def get_oem_inward_by_load(db: Session, branch_id: str, start_date: date, end_date: date) -> pd.DataFrame:
+    """Get OEM inward details grouped by load number"""
+    query = (
+        db.query(
+            models.InventoryTransaction.Date,
+            models.InventoryTransaction.Load_Number,
+            models.InventoryTransaction.Model,
+            models.InventoryTransaction.Variant,
+            models.InventoryTransaction.Color,
+            models.InventoryTransaction.Quantity,
+            models.InventoryTransaction.Remarks
+        )
+        .filter(
+            models.InventoryTransaction.Transaction_Type == "INWARD",
+            models.InventoryTransaction.Current_Branch_ID == branch_id,
+            models.InventoryTransaction.Date >= start_date,
+            models.InventoryTransaction.Date <= end_date,
+            models.InventoryTransaction.Remarks.like('%HMSI%')
+        )
+        .order_by(models.InventoryTransaction.Date.desc())
+    )
+
+    df = pd.read_sql(query.statement, db.get_bind())
+    return df
+
+
+def get_oem_inward_daily_trend(db: Session, branch_id: str, start_date: date, end_date: date) -> pd.DataFrame:
+    """Get daily trend of OEM inward"""
+    query = (
+        db.query(
+            models.InventoryTransaction.Date,
+            func.count(func.distinct(models.InventoryTransaction.Load_Number)).label("Loads"),
+            func.sum(models.InventoryTransaction.Quantity).label("Total_Vehicles")
+        )
+        .filter(
+            models.InventoryTransaction.Transaction_Type == models.TransactionType.INWARD_OEM,
+            models.InventoryTransaction.Current_Branch_ID == branch_id,
+            models.InventoryTransaction.Date >= start_date,
+            models.InventoryTransaction.Date <= end_date,
+            models.InventoryTransaction.Remarks.like('%HMSI%')
+        )
+        .group_by(models.InventoryTransaction.Date)
+        .order_by(models.InventoryTransaction.Date)
+    )
+
+    df = pd.read_sql(query.statement, db.get_bind())
+    return df
+
 

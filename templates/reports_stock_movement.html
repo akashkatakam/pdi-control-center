@@ -4,153 +4,204 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <a href="/reports" class="p-2 hover:bg-gray-100 rounded-lg transition">
-                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">📊 Stock Movement Report</h1>
-                <p class="text-sm text-gray-600">Inward and outward transactions</p>
-            </div>
+
+    <!-- Header with Date Filter -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">🔄 Stock Movement Report</h1>
+            <p class="text-gray-600 mt-1">Branch-to-branch transfer summary</p>
         </div>
-        <button onclick="exportToExcel()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-            📥 Export
-        </button>
+        <a href="/reports" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold">
+            ← Back to Reports
+        </a>
     </div>
 
     <!-- Date Filter -->
-    <div class="bg-white rounded-xl shadow-lg p-4">
-        <form method="GET" class="flex flex-wrap gap-3 items-end">
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs font-medium text-gray-700 mb-1">From Date</label>
-                <input type="date" name="from_date" value="{{ from_date }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <form method="GET" class="flex items-end gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-bold text-gray-700 mb-2">From Date</label>
+                <input type="date" name="from_date" value="{{ from_date }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs font-medium text-gray-700 mb-1">To Date</label>
-                <input type="date" name="to_date" value="{{ to_date }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <div class="flex-1">
+                <label class="block text-sm font-bold text-gray-700 mb-2">To Date</label>
+                <input type="date" name="to_date" value="{{ to_date }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             </div>
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Transaction Type</label>
-                <select name="transaction_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="all" {% if transaction_type == 'all' %}selected{% endif %}>All Transactions</option>
-                    <option value="inward" {% if transaction_type == 'inward' %}selected{% endif %}>Inward Only</option>
-                    <option value="outward" {% if transaction_type == 'outward' %}selected{% endif %}>Outward Only</option>
-                </select>
-            </div>
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Apply</button>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                Apply Filter
+            </button>
         </form>
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-green-100 text-xs mb-1">Total Inward</p>
-            <p class="text-4xl font-bold">{{ summary.total_inward }}</p>
-            <p class="text-green-100 text-xs mt-2">{{ summary.inward_loads }} loads</p>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-gradient-to-br from-red-500 to-pink-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-red-100 text-sm font-medium">Total Sent</p>
+            <p class="text-4xl font-bold mt-2">{{ summary.total_sent }}</p>
+            <p class="text-red-100 text-xs mt-1">Vehicles transferred out</p>
         </div>
 
-        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-red-100 text-xs mb-1">Total Outward</p>
-            <p class="text-4xl font-bold">{{ summary.total_outward }}</p>
-            <p class="text-red-100 text-xs mt-2">{{ summary.outward_loads }} loads</p>
+        <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-green-100 text-sm font-medium">Total Received</p>
+            <p class="text-4xl font-bold mt-2">{{ summary.total_received }}</p>
+            <p class="text-green-100 text-xs mt-1">Vehicles received</p>
         </div>
 
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-blue-100 text-xs mb-1">Net Movement</p>
-            <p class="text-4xl font-bold">{{ summary.net_movement }}</p>
-            <p class="text-blue-100 text-xs mt-2">
-                {% if summary.net_movement > 0 %}+{% endif %}{{ summary.net_movement }} units
-            </p>
+        <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-blue-100 text-sm font-medium">Branches Involved</p>
+            <p class="text-4xl font-bold mt-2">{{ summary.unique_branches }}</p>
+            <p class="text-blue-100 text-xs mt-1">Active locations</p>
         </div>
 
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
-            <p class="text-purple-100 text-xs mb-1">Branches Involved</p>
-            <p class="text-4xl font-bold">{{ summary.branches_count }}</p>
-            <p class="text-purple-100 text-xs mt-2">Active locations</p>
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <p class="text-purple-100 text-sm font-medium">Models Moved</p>
+            <p class="text-4xl font-bold mt-2">{{ summary.unique_models }}</p>
+            <p class="text-purple-100 text-xs mt-1">Different models</p>
         </div>
     </div>
 
-    <!-- Movement Timeline -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="bg-gray-50 px-5 py-4 border-b">
-            <h3 class="font-bold text-lg text-gray-900">Transaction Timeline</h3>
+    <!-- Branch-to-Branch Transfers -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Branch-to-Branch Transfer Summary</h2>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">From</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">To</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Model</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Variant</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Quantity</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Load #</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for txn in transactions %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ txn.date }}</td>
-                        <td class="px-4 py-3 text-center">
-                            {% if txn.type == 'INWARD' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                ⬇️ Inward
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                ⬆️ Outward
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ txn.from_branch or '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ txn.to_branch }}</td>
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ txn.model }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ txn.variant }}</td>
-                        <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">{{ txn.quantity }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ txn.load_number or '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+        <div class="p-6">
+            {% if branch_transfers %}
+            <div class="space-y-4">
+                {% for transfer in branch_transfers %}
+                <div class="border-l-4 border-cyan-500 bg-gray-50 rounded-lg p-4 hover:shadow-md transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-cyan-100 text-cyan-800 px-4 py-2 rounded-lg font-bold">
+                                {{ transfer.from_branch }}
+                            </div>
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                            </svg>
+                            <div class="bg-green-100 text-green-800 px-4 py-2 rounded-lg font-bold">
+                                {{ transfer.to_branch }}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-3xl font-bold text-cyan-600">{{ transfer.total_quantity }}</div>
+                            <div class="text-xs text-gray-500">{{ transfer.loads }} loads</div>
+                        </div>
+                    </div>
 
-    <!-- Daily Summary Chart -->
-    <div class="bg-white rounded-xl shadow-lg p-5">
-        <h3 class="font-bold text-lg text-gray-900 mb-4">Daily Movement Trend</h3>
-        <div class="space-y-2">
-            {% for day in daily_summary %}
-            <div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="text-gray-700">{{ day.date }}</span>
-                    <span class="font-semibold">
-                        <span class="text-green-600">+{{ day.inward }}</span> / 
-                        <span class="text-red-600">-{{ day.outward }}</span>
-                    </span>
-                </div>
-                <div class="flex h-8 bg-gray-200 rounded-lg overflow-hidden">
-                    <div class="bg-green-500 flex items-center justify-center text-white text-xs font-bold" style="width: {{ day.inward_percent }}%">
-                        {% if day.inward > 0 %}{{ day.inward }}{% endif %}
-                    </div>
-                    <div class="bg-red-500 flex items-center justify-center text-white text-xs font-bold" style="width: {{ day.outward_percent }}%">
-                        {% if day.outward > 0 %}{{ day.outward }}{% endif %}
+                    <!-- Model Breakdown -->
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for model_data in transfer.models %}
+                        <div class="bg-white border border-gray-200 rounded-lg px-3 py-2">
+                            <span class="text-sm font-semibold text-gray-900">{{ model_data.model }}</span>
+                            <span class="text-xs text-gray-600 ml-2">× {{ model_data.qty }}</span>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            {% else %}
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+                <p class="text-gray-500 mt-4 font-semibold">No transfers recorded for the selected period</p>
+            </div>
+            {% endif %}
         </div>
     </div>
-</div>
 
-<script>
-function exportToExcel() {
-    window.location.href = '/reports/stock-movement/export?from_date={{ from_date }}&to_date={{ to_date }}';
-}
-</script>
+    <!-- Model-wise Transfer Summary -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Model-wise Transfer Summary</h2>
+        </div>
+        <div class="p-6">
+            {% if model_transfers %}
+            <div class="space-y-6">
+                {% for model_data in model_transfers %}
+                <div class="border border-gray-200 rounded-lg p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ model_data.model }}</h3>
+                            <p class="text-sm text-gray-600">Total transferred: {{ model_data.total_quantity }} units</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-4xl font-bold text-purple-600">{{ model_data.total_quantity }}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Top Destinations -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3">Top Destinations</h4>
+                            <div class="space-y-2">
+                                {% for dest in model_data.destinations %}
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-semibold text-gray-900">{{ dest.branch }}</span>
+                                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">{{ dest.qty }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Variant Breakdown -->
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3">Variant Breakdown</h4>
+                            <div class="space-y-2">
+                                {% for variant in model_data.variants %}
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-semibold text-gray-900">{{ variant.variant }}</span>
+                                    <span class="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">{{ variant.qty }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <p class="text-gray-500 mt-4 font-semibold">No model data available</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Transfer Matrix -->
+    {% if transfer_matrix %}
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r from-orange-600 to-red-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Transfer Matrix (Source → Destination)</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for row in transfer_matrix %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="font-bold text-lg text-gray-900 mb-3">
+                        📤 From: {{ row.from_branch }}
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {% for dest in row.destinations %}
+                        <div class="bg-white border-2 border-orange-200 rounded-lg p-3 text-center hover:border-orange-400 transition">
+                            <div class="text-xs text-gray-600 mb-1">To</div>
+                            <div class="font-bold text-sm text-gray-900">{{ dest.branch }}</div>
+                            <div class="text-2xl font-bold text-orange-600 mt-1">{{ dest.quantity }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
 {% endblock %}
