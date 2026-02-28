@@ -3,15 +3,14 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timedelta
 import time
 
-import models
 from database import get_db
-from models import VehicleMaster, Branch, InventoryTransaction
+from models import VehicleMaster, Branch, InventoryTransaction, TransactionType
 from services import branch_service, email_service, stock_service
 from routers.overview import get_active_context, get_context_data, check_auth
+from utils import constants as constants
 
 router = APIRouter(prefix="/logistics", tags=["logistics"])
 templates = Jinja2Templates(directory="templates")
@@ -107,7 +106,7 @@ async def receive_inward(
     today = datetime.now().date()
     today_received = db.query(InventoryTransaction).filter(
         InventoryTransaction.Current_Branch_ID == active_branch_id,
-        InventoryTransaction.Transaction_Type == "INWARD",
+        InventoryTransaction.Transaction_Type == "HMSI",
         InventoryTransaction.Date == today
     ).count()
 
@@ -115,7 +114,7 @@ async def receive_inward(
     recent_date = datetime.now() - timedelta(days=7)
     recent_receipts = db.query(InventoryTransaction).filter(
         InventoryTransaction.Current_Branch_ID == active_branch_id,
-        InventoryTransaction.Transaction_Type == "INWARD",
+        InventoryTransaction.Transaction_Type == "HMSI",
         InventoryTransaction.Date >= recent_date.date()
     ).group_by(InventoryTransaction.Load_Number).all()
 
@@ -543,7 +542,7 @@ async def sync_emails(
                 "new_loads": 0
             })
 
-        color_map = {}
+        color_map = constants.COLOR_CODE_MAP
 
         vehicle_data_list, logs = email_service.fetch_and_process_emails(
             db=db,

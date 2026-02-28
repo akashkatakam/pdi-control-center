@@ -122,15 +122,12 @@ def get_all_product_mappings(db: Session) -> pd.DataFrame:
 
 
 def get_vehicles_in_load(db: Session, branch_id: str, load_reference: str) -> pd.DataFrame:
-    """
-    Fetches details of all 'In Transit' vehicles for a specific load.
-    """
     query = db.query(
-        models.VehicleMaster.chassis_no.label("Chassis No"),
-        models.VehicleMaster.model.label("Model"),
-        models.VehicleMaster.variant.label("Variant"),
-        models.VehicleMaster.color.label("Color"),
-        models.VehicleMaster.engine_no.label("Engine No")
+        models.VehicleMaster.chassis_no.label("chassis_no"),   # ← fix
+        models.VehicleMaster.model.label("model"),             # ← fix
+        models.VehicleMaster.variant.label("variant"),         # ← fix
+        models.VehicleMaster.color.label("color"),             # ← fix
+        models.VehicleMaster.engine_no.label("engine_no")      # ← fix
     ).filter(
         models.VehicleMaster.current_branch_id == branch_id,
         models.VehicleMaster.load_reference_number == load_reference,
