@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}PDI Dashboard - PDI Control Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">PDI Dashboard</h1>
+                <p class="text-gray-600 mt-1">Managing {{ branch_count }} branch{{ 'es' if branch_count > 1 else '' }}</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-500">Main Branch</div>
+                <div class="text-lg font-semibold text-gray-900">{{ branch_name }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Pending PDI -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Pending PDI</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ pending_pdi }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDI In Progress -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-orange-100 rounded-lg p-3">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">PDI In Progress</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ in_progress }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- In Transit -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">In Transit</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ in_transit }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- In Stock -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">In Stock</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ in_stock }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">PDI Status Tracking</h2>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <a href="/pdi/dashboard" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm {% if not status_filter %}bg-blue-50 border-blue-500{% endif %}">
+                    All
+                </a>
+                <a href="/pdi/dashboard?status_filter=PDI Pending" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm {% if status_filter == 'PDI Pending' %}bg-yellow-50 border-yellow-500{% endif %}">
+                    Pending
+                </a>
+                <a href="/pdi/dashboard?status_filter=PDI In Progress" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm {% if status_filter == 'PDI In Progress' %}bg-orange-50 border-orange-500{% endif %}">
+                    In Progress
+                </a>
+                <a href="/pdi/dashboard?status_filter=PDI Complete" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm {% if status_filter == 'PDI Complete' %}bg-green-50 border-green-500{% endif %}">
+                    Completed
+                </a>
+                <a href="/pdi/inventory" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm">
+                    View Inventory
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales/PDI Records Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chassis No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PDI Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Delivery</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for vehicle in vehicles %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ vehicle.branch_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ vehicle.customer_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ vehicle.chassis_no }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ vehicle.model }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ vehicle.color }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if vehicle.pdi_status == 'PDI Pending' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
+                            {% elif vehicle.pdi_status == 'PDI In Progress' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                In Progress
+                            </span>
+                            {% elif vehicle.pdi_status == 'PDI Complete' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Complete
+                            </span>
+                            {% else %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                {{ vehicle.pdi_status }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-xs text-gray-600">{{ vehicle.vehicle_status }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ vehicle.expected_delivery.strftime('%d-%m-%Y') if vehicle.expected_delivery else 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <form method="POST" action="/pdi/vehicle/update-pdi-status" class="inline">
+                                <input type="hidden" name="sale_id" value="{{ vehicle.sale_id }}">
+                                <select name="new_status" onchange="this.form.submit()" class="text-xs border border-gray-300 rounded px-2 py-1">
+                                    <option value="">Update...</option>
+                                    <option value="PDI Pending">Pending</option>
+                                    <option value="PDI In Progress">In Progress</option>
+                                    <option value="PDI Complete">Complete</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                            No sales records found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
