@@ -7,13 +7,13 @@
 <div class="space-y-4">
     <!-- Welcome Card -->
     <div class="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
-        <div class="flex justify-between items-start mb-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
             <div>
                 <p class="text-blue-100 text-sm mb-1">👋 {{ greeting }}</p>
-                <h1 class="text-3xl font-bold">{{ username }}</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold">{{ username }}</h1>
                 <p class="text-blue-100 text-sm mt-1">{{ user_role }}</p>
             </div>
-            <div class="text-right">
+            <div class="text-left sm:text-right">
                 <p class="text-xs text-blue-100 mb-1">Branch</p>
                 <p class="font-bold text-lg">{{ branch_name }}</p>
             </div>
@@ -24,64 +24,64 @@
     <div class="grid grid-cols-2 gap-4">
         <!-- PDI Pending -->
         <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
-            <div class="p-5">
+            <div class="p-3 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <span class="text-2xl">⏳</span>
+                    <div class="w-10 sm:w-12 h-10 sm:h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <span class="text-xl sm:text-2xl">⏳</span>
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mb-1">PDI Pending</p>
-                <p class="text-4xl font-bold text-orange-600">{{ pdi_pending }}</p>
+                <p class="text-3xl sm:text-4xl font-bold text-orange-600">{{ pdi_pending }}</p>
             </div>
-            <div class="bg-orange-50 px-5 py-2">
+            <div class="bg-orange-50 px-3 sm:px-5 py-2">
                 <a href="/task-manager?filter=pending" class="text-xs text-orange-700 font-medium">View tasks →</a>
             </div>
         </div>
 
         <!-- In Progress -->
         <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
-            <div class="p-5">
+            <div class="p-3 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span class="text-2xl">⚡</span>
+                    <div class="w-10 sm:w-12 h-10 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-xl sm:text-2xl">⚡</span>
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mb-1">In Progress</p>
-                <p class="text-4xl font-bold text-blue-600">{{ pdi_in_progress }}</p>
+                <p class="text-3xl sm:text-4xl font-bold text-blue-600">{{ pdi_in_progress }}</p>
             </div>
-            <div class="bg-blue-50 px-5 py-2">
+            <div class="bg-blue-50 px-3 sm:px-5 py-2">
                 <a href="/task-manager?filter=in_progress" class="text-xs text-blue-700 font-medium">View tasks →</a>
             </div>
         </div>
 
         <!-- In Transit -->
         <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
-            <div class="p-5">
+            <div class="p-3 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <span class="text-2xl">🚚</span>
+                    <div class="w-10 sm:w-12 h-10 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <span class="text-xl sm:text-2xl">🚚</span>
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mb-1">In Transit</p>
-                <p class="text-4xl font-bold text-purple-600">{{ in_transit }}</p>
+                <p class="text-3xl sm:text-4xl font-bold text-purple-600">{{ in_transit }}</p>
             </div>
-            <div class="bg-purple-50 px-5 py-2">
+            <div class="bg-purple-50 px-3 sm:px-5 py-2">
                 <a href="/logistics/receive" class="text-xs text-purple-700 font-medium">Receive →</a>
             </div>
         </div>
 
         <!-- Stock on Hand -->
         <div class="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition">
-            <div class="p-5">
+            <div class="p-3 sm:p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <span class="text-2xl">📦</span>
+                    <div class="w-10 sm:w-12 h-10 sm:h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <span class="text-xl sm:text-2xl">📦</span>
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mb-1">Stock on Hand</p>
-                <p class="text-4xl font-bold text-green-600">{{ stock_on_hand }}</p>
+                <p class="text-3xl sm:text-4xl font-bold text-green-600">{{ stock_on_hand }}</p>
             </div>
-            <div class="bg-green-50 px-5 py-2">
+            <div class="bg-green-50 px-3 sm:px-5 py-2">
                 <a href="/inventory/stock-levels" class="text-xs text-green-700 font-medium">View inventory →</a>
             </div>
         </div>
@@ -93,22 +93,22 @@
             <span class="text-xl mr-2">⚡</span>
             Quick Actions
         </h2>
-        <div class="grid grid-cols-2 gap-3">
-            <a href="/task-manager" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition">
-                <span class="text-3xl mb-2">📋</span>
-                <span class="text-sm font-semibold text-gray-900">Tasks</span>
+        <div class="grid grid-cols-2 gap-2 sm:gap-3">
+            <a href="/task-manager" class="flex flex-col items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl hover:shadow-md transition">
+                <span class="text-2xl sm:text-3xl mb-2">📋</span>
+                <span class="text-xs sm:text-sm font-semibold text-gray-900">Tasks</span>
             </a>
-            <a href="/inventory/locator" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:shadow-md transition">
-                <span class="text-3xl mb-2">🔍</span>
-                <span class="text-sm font-semibold text-gray-900">Search</span>
+            <a href="/inventory/locator" class="flex flex-col items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:shadow-md transition">
+                <span class="text-2xl sm:text-3xl mb-2">🔍</span>
+                <span class="text-xs sm:text-sm font-semibold text-gray-900">Search</span>
             </a>
-            <a href="/logistics/transfer" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:shadow-md transition">
-                <span class="text-3xl mb-2">🚚</span>
-                <span class="text-sm font-semibold text-gray-900">Transfer</span>
+            <a href="/logistics/transfer" class="flex flex-col items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl hover:shadow-md transition">
+                <span class="text-2xl sm:text-3xl mb-2">🚚</span>
+                <span class="text-xs sm:text-sm font-semibold text-gray-900">Transfer</span>
             </a>
-            <a href="/logistics/receive" class="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:shadow-md transition">
-                <span class="text-3xl mb-2">📥</span>
-                <span class="text-sm font-semibold text-gray-900">Receive</span>
+            <a href="/logistics/receive" class="flex flex-col items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl hover:shadow-md transition">
+                <span class="text-2xl sm:text-3xl mb-2">📥</span>
+                <span class="text-xs sm:text-sm font-semibold text-gray-900">Receive</span>
             </a>
         </div>
     </div>

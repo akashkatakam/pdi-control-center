@@ -10,11 +10,11 @@
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">📥 Receive Inward</h1>
             <p class="text-sm text-gray-600 mt-1">Process incoming vehicle shipments</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="syncEmails()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <div class="flex gap-2 w-full sm:w-auto">
+            <button onclick="syncEmails()" class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium text-center">
                 🔄 Sync Emails
             </button>
-            <a href="/logistics/transfer" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-center">
+            <a href="/logistics/transfer" class="flex-1 sm:flex-none px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-center">
                 Transfer →
             </a>
         </div>
@@ -55,7 +55,7 @@
         </div>
     </div>
 
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid md:grid-cols-2 gap-6">
         <!-- Left: Pending Loads from Emails -->
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="bg-gradient-to-r from-orange-500 to-red-500 px-4 sm:px-6 py-4 text-white">
@@ -196,7 +196,7 @@
 
 <!-- Receive Modal -->
 <div id="receiveModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-hidden">
         <div class="bg-blue-600 px-6 py-4 text-white flex justify-between items-center">
             <h3 class="text-xl font-bold">📦 Receive Load</h3>
             <button onclick="closeReceiveModal()" class="text-white hover:text-gray-200">
@@ -206,7 +206,7 @@
             </button>
         </div>
 
-        <div class="p-6 overflow-y-auto max-h-[calc(90vh-200px)]" id="modalContent">
+        <div class="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-200px)]" id="modalContent">
             <!-- Content loaded dynamically -->
         </div>
 

@@ -44,7 +44,7 @@
         </div>
 
         <div class="p-6">
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div class="bg-gray-50 p-4 rounded-lg">
                     <p class="text-gray-500 text-xs uppercase mb-1">Customer Name</p>
                     <p class="font-bold text-gray-900">{{ sales_record.Customer_Name }}</p>
@@ -83,7 +83,7 @@
             </svg>
             Customer Ordered Specifications
         </h3>
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white rounded-lg p-4 border-2 border-orange-200">
                 <p class="text-xs text-gray-600 uppercase mb-1">Required Model</p>
                 <p class="text-xl font-bold text-orange-900">{{ sales_record.Model }}</p>
@@ -282,18 +282,18 @@
             </div>
 
             <!-- Submit Buttons -->
-            <div class="flex gap-4">
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button
                     type="submit"
                     id="submit-btn"
                     disabled
-                    class="flex-1 px-6 py-4 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed text-lg"
+                    class="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed text-base sm:text-lg"
                 >
                     ✓ Complete PDI & Link Vehicle
                 </button>
                 <a
                     href="/mechanic/dashboard"
-                    class="px-6 py-4 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition text-center"
+                    class="px-4 sm:px-6 py-3 sm:py-4 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition text-center"
                 >
                     Cancel
                 </a>
